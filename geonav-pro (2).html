@@ -1,0 +1,1748 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoNav Pro - Application Cartographique</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet Routing Machine CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #0d1b2a;
+            --secondary: #1b263b;
+            --accent: #00d4aa;
+            --accent-hover: #00b894;
+            --text: #e0e1dd;
+            --text-muted: #778da9;
+            --danger: #e63946;
+            --warning: #f4a261;
+            --success: #2a9d8f;
+            --glass: rgba(13, 27, 42, 0.85);
+            --glass-light: rgba(27, 38, 59, 0.9);
+            --border: rgba(0, 212, 170, 0.2);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --radius: 12px;
+            --radius-sm: 8px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--primary);
+            color: var(--text);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Map Container */
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 1000;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .logo-text {
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            font-size: 1.2rem;
+            background: linear-gradient(90deg, var(--accent), var(--text));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Buttons */
+        .btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: var(--glass-light);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background: var(--accent);
+            color: var(--primary);
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--primary);
+            border-color: var(--accent);
+            font-weight: 600;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
+        }
+
+        .btn-icon {
+            padding: 10px;
+            min-width: 40px;
+            justify-content: center;
+        }
+
+        .btn-danger {
+            background: rgba(230, 57, 70, 0.2);
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .btn-danger:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-location {
+            background: rgba(0, 212, 170, 0.15);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn-location:hover {
+            background: var(--accent);
+            color: var(--primary);
+        }
+
+        .btn-location.loading {
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        /* Side Panel */
+        .side-panel {
+            position: fixed;
+            top: 70px;
+            left: 10px;
+            width: 360px;
+            max-height: calc(100vh - 80px);
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            z-index: 999;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+        }
+
+        .side-panel.collapsed {
+            transform: translateX(-380px);
+        }
+
+        .panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-title {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .panel-content {
+            padding: 16px 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            padding: 4px;
+            background: var(--secondary);
+            border-radius: var(--radius-sm);
+            margin-bottom: 16px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            color: var(--text-muted);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab.active {
+            background: var(--accent);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .tab:hover:not(.active) {
+            color: var(--text);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.1);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .input-group .form-input {
+            flex: 1;
+        }
+
+        /* Route Mode Toggle */
+        .route-modes {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .route-mode {
+            flex: 1;
+            padding: 12px;
+            background: var(--secondary);
+            border: 2px solid transparent;
+            border-radius: var(--radius-sm);
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .route-mode:hover {
+            border-color: var(--border);
+        }
+
+        .route-mode.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(0, 212, 170, 0.1);
+        }
+
+        .route-mode-icon {
+            font-size: 1.5rem;
+        }
+
+        .route-mode-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Route Info Card */
+        .route-info {
+            background: var(--secondary);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            display: none;
+        }
+
+        .route-info.visible {
+            display: block;
+        }
+
+        .route-stats {
+            display: flex;
+            gap: 16px;
+        }
+
+        .route-stat {
+            flex: 1;
+            text-align: center;
+        }
+
+        .route-stat-value {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .route-stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        /* Layer List */
+        .layer-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .layer-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: var(--secondary);
+            border-radius: var(--radius-sm);
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .layer-item:hover {
+            border-color: var(--border);
+        }
+
+        .layer-checkbox {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .layer-info {
+            flex: 1;
+        }
+
+        .layer-name {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .layer-type {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .layer-remove {
+            padding: 6px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .layer-remove:hover {
+            background: rgba(230, 57, 70, 0.2);
+            color: var(--danger);
+        }
+
+        /* File Upload */
+        .file-upload {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-sm);
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 16px;
+        }
+
+        .file-upload:hover {
+            border-color: var(--accent);
+            background: rgba(0, 212, 170, 0.05);
+        }
+
+        .file-upload-icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .file-upload-text {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .file-upload-formats {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        /* Toggle Button */
+        .toggle-panel {
+            position: fixed;
+            top: 80px;
+            left: 10px;
+            z-index: 998;
+            display: none;
+        }
+
+        .side-panel.collapsed + .toggle-panel,
+        .toggle-panel.visible {
+            display: block;
+        }
+
+        /* Map Controls */
+        .map-controls {
+            position: fixed;
+            right: 10px;
+            top: 80px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 999;
+        }
+
+        .control-btn {
+            width: 44px;
+            height: 44px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .control-btn:hover {
+            background: var(--accent);
+            color: var(--primary);
+            border-color: var(--accent);
+        }
+
+        .control-btn.active {
+            background: var(--accent);
+            color: var(--primary);
+        }
+
+        /* Basemap Selector */
+        .basemap-selector {
+            position: fixed;
+            right: 10px;
+            bottom: 30px;
+            display: flex;
+            gap: 8px;
+            z-index: 999;
+        }
+
+        .basemap-option {
+            width: 80px;
+            height: 60px;
+            border-radius: var(--radius-sm);
+            border: 2px solid transparent;
+            cursor: pointer;
+            overflow: hidden;
+            position: relative;
+            transition: all 0.2s ease;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .basemap-option:hover {
+            transform: translateY(-4px);
+        }
+
+        .basemap-option.active {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.3);
+        }
+
+        .basemap-option::after {
+            content: attr(data-name);
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 4px;
+            background: var(--glass);
+            font-size: 0.65rem;
+            text-align: center;
+            color: var(--text);
+        }
+
+        .basemap-satellite {
+            background: linear-gradient(135deg, #2d4a3e 0%, #1a2f25 100%);
+        }
+
+        .basemap-dark {
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%);
+        }
+
+        /* Status Messages */
+        .status-message {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-size: 0.9rem;
+            z-index: 1001;
+            display: none;
+            animation: slideUp 0.3s ease;
+        }
+
+        .status-message.visible {
+            display: block;
+        }
+
+        .status-message.success {
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .status-message.error {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        /* Selection Mode Indicator */
+        .selection-mode {
+            position: fixed;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            background: var(--accent);
+            color: var(--primary);
+            border-radius: var(--radius);
+            font-weight: 600;
+            z-index: 1001;
+            display: none;
+            animation: pulse 2s infinite;
+        }
+
+        .selection-mode.visible {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        /* Leaflet Customizations */
+        .leaflet-control-zoom {
+            display: none;
+        }
+
+        .leaflet-routing-container {
+            display: none;
+        }
+
+        .custom-marker {
+            background: none;
+            border: none;
+        }
+
+        .marker-start {
+            width: 30px;
+            height: 30px;
+            background: var(--success);
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .marker-end {
+            width: 30px;
+            height: 30px;
+            background: var(--danger);
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .marker-user {
+            width: 20px;
+            height: 20px;
+            background: var(--accent);
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            animation: userPulse 2s infinite;
+        }
+
+        @keyframes userPulse {
+            0%, 100% { 
+                box-shadow: 0 0 0 0 rgba(0, 212, 170, 0.4);
+            }
+            50% { 
+                box-shadow: 0 0 0 15px rgba(0, 212, 170, 0);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .side-panel {
+                width: calc(100% - 20px);
+                max-height: 50vh;
+                top: auto;
+                bottom: 10px;
+                left: 10px;
+                right: 10px;
+            }
+
+            .side-panel.collapsed {
+                transform: translateY(calc(100% + 20px));
+            }
+
+            .header {
+                padding: 0 12px;
+            }
+
+            .logo-text {
+                display: none;
+            }
+
+            .btn span {
+                display: none;
+            }
+
+            .btn {
+                padding: 10px;
+            }
+
+            .basemap-selector {
+                right: 60px;
+                bottom: 10px;
+            }
+
+            .basemap-option {
+                width: 50px;
+                height: 40px;
+            }
+
+            .basemap-option::after {
+                display: none;
+            }
+
+            .map-controls {
+                top: auto;
+                bottom: 10px;
+                right: 10px;
+            }
+
+            .selection-mode {
+                top: 65px;
+                font-size: 0.8rem;
+                padding: 8px 16px;
+            }
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Instructions */
+        .instructions {
+            background: rgba(0, 212, 170, 0.1);
+            border: 1px solid var(--accent);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            margin-bottom: 16px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .instructions strong {
+            color: var(--accent);
+        }
+    </style>
+</head>
+<body>
+    <!-- Map Container -->
+    <div id="map"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <div class="logo-icon">🗺️</div>
+            <span class="logo-text">GeoNav Pro</span>
+        </div>
+        <div class="header-actions">
+            <button class="btn" id="locateBtn" title="Ma position">
+                📍 <span>Ma position</span>
+            </button>
+            <button class="btn btn-icon" id="togglePanelBtn" title="Menu">
+                ☰
+            </button>
+        </div>
+    </header>
+
+    <!-- Side Panel -->
+    <div class="side-panel" id="sidePanel">
+        <div class="panel-header">
+            <span class="panel-title">Navigation</span>
+            <button class="btn btn-icon" id="closePanelBtn">✕</button>
+        </div>
+        <div class="panel-content">
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" data-tab="route">Itinéraire</button>
+                <button class="tab" data-tab="layers">Couches</button>
+            </div>
+
+            <!-- Route Tab -->
+            <div class="tab-content active" id="routeTab">
+                <div class="instructions">
+                    <strong>💡 Astuce :</strong> Cliquez sur la carte ou utilisez 📍 pour définir votre position comme point de départ ou d'arrivée.
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Point de départ</label>
+                    <div class="input-group">
+                        <input type="text" class="form-input" id="startInput" placeholder="Cliquez sur la carte..." readonly>
+                        <button class="btn btn-icon" id="selectStartBtn" title="Sélectionner sur la carte">🎯</button>
+                        <button class="btn btn-icon btn-location" id="useMyLocationStartBtn" title="Utiliser ma position">📍</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Point d'arrivée</label>
+                    <div class="input-group">
+                        <input type="text" class="form-input" id="endInput" placeholder="Cliquez sur la carte..." readonly>
+                        <button class="btn btn-icon" id="selectEndBtn" title="Sélectionner sur la carte">🏁</button>
+                        <button class="btn btn-icon btn-location" id="useMyLocationEndBtn" title="Utiliser ma position">📍</button>
+                    </div>
+                </div>
+
+                <div class="form-label">Mode de transport</div>
+                <div class="route-modes">
+                    <div class="route-mode active" data-mode="car">
+                        <span class="route-mode-icon">🚗</span>
+                        <span class="route-mode-label">Voiture</span>
+                    </div>
+                    <div class="route-mode" data-mode="foot">
+                        <span class="route-mode-icon">🚶</span>
+                        <span class="route-mode-label">À pied</span>
+                    </div>
+                    <div class="route-mode" data-mode="bike">
+                        <span class="route-mode-icon">🚴</span>
+                        <span class="route-mode-label">Vélo</span>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" id="calculateRouteBtn" style="width: 100%;">
+                    🔍 Calculer l'itinéraire
+                </button>
+
+                <button class="btn btn-danger" id="clearRouteBtn" style="width: 100%; margin-top: 8px; display: none;">
+                    🗑️ Effacer l'itinéraire
+                </button>
+
+                <div class="route-info" id="routeInfo">
+                    <div class="route-stats">
+                        <div class="route-stat">
+                            <div class="route-stat-value" id="routeDistance">--</div>
+                            <div class="route-stat-label">Distance</div>
+                        </div>
+                        <div class="route-stat">
+                            <div class="route-stat-value" id="routeTime">--</div>
+                            <div class="route-stat-label">Durée</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Layers Tab -->
+            <div class="tab-content" id="layersTab">
+                <div class="file-upload" id="fileUpload">
+                    <div class="file-upload-icon">📂</div>
+                    <div class="file-upload-text">Glissez un fichier ou cliquez</div>
+                    <div class="file-upload-formats">GeoJSON, Shapefile (.zip), KML</div>
+                </div>
+                <input type="file" id="fileInput" accept=".geojson,.json,.zip,.kml">
+
+                <div class="form-label">Couches actives</div>
+                <div class="layer-list" id="layerList">
+                    <div class="layer-item">
+                        <input type="checkbox" class="layer-checkbox" id="osmLayer" checked>
+                        <div class="layer-info">
+                            <div class="layer-name">OpenStreetMap</div>
+                            <div class="layer-type">Fond de carte</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toggle Panel Button (mobile) -->
+    <button class="btn toggle-panel" id="showPanelBtn">
+        ☰ Menu
+    </button>
+
+    <!-- Map Controls -->
+    <div class="map-controls">
+        <button class="control-btn" id="zoomInBtn" title="Zoom +">+</button>
+        <button class="control-btn" id="zoomOutBtn" title="Zoom -">−</button>
+        <button class="control-btn" id="rotateBtn" title="Réinitialiser la vue">⟲</button>
+    </div>
+
+    <!-- Basemap Selector -->
+    <div class="basemap-selector">
+        <div class="basemap-option basemap-satellite active" data-basemap="satellite" data-name="Satellite"></div>
+        <div class="basemap-option basemap-dark" data-basemap="dark" data-name="Sombre"></div>
+    </div>
+
+    <!-- Selection Mode Indicator -->
+    <div class="selection-mode" id="selectionMode">
+        <span id="selectionText">Cliquez sur la carte pour sélectionner</span>
+        <button class="btn btn-icon" id="cancelSelectionBtn">✕</button>
+    </div>
+
+    <!-- Status Message -->
+    <div class="status-message" id="statusMessage"></div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    <script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
+    
+    <script>
+        // ==========================================
+        // GeoNav Pro - Application Cartographique
+        // ==========================================
+
+        // Configuration
+        const CONFIG = {
+            defaultCenter: [31.7917, -7.0926], // Maroc
+            defaultZoom: 6,
+            maxZoom: 19,
+            minZoom: 3
+        };
+
+        // État de l'application
+        const state = {
+            map: null,
+            basemaps: {},
+            currentBasemap: 'satellite',
+            startMarker: null,
+            endMarker: null,
+            userMarker: null,
+            routeControl: null,
+            routeLayer: null,
+            customLayers: [],
+            selectionMode: null, // 'start' | 'end' | null
+            transportMode: 'car'
+        };
+
+        // ==========================================
+        // Initialisation
+        // ==========================================
+
+        function initApp() {
+            initMap();
+            initBasemaps();
+            initEventListeners();
+            showStatus('Application prête', 'success');
+        }
+
+        function initMap() {
+            state.map = L.map('map', {
+                center: CONFIG.defaultCenter,
+                zoom: CONFIG.defaultZoom,
+                zoomControl: false,
+                attributionControl: true
+            });
+
+            // Attribution personnalisée
+            state.map.attributionControl.setPrefix('GeoNav Pro');
+        }
+
+        function initBasemaps() {
+            // Satellite (ESRI)
+            state.basemaps.satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: CONFIG.maxZoom,
+                attribution: '© Esri, Maxar, Earthstar Geographics'
+            });
+
+            // Dark Mode (CartoDB)
+            state.basemaps.dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: CONFIG.maxZoom,
+                attribution: '© OpenStreetMap contributors, © CARTO'
+            });
+
+            // Ajouter le fond satellite par défaut
+            state.basemaps.satellite.addTo(state.map);
+            state.currentBasemap = 'satellite';
+        }
+
+        // ==========================================
+        // Gestion des événements
+        // ==========================================
+
+        function initEventListeners() {
+            // Tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+            });
+
+            // Panel toggle
+            document.getElementById('togglePanelBtn').addEventListener('click', togglePanel);
+            document.getElementById('closePanelBtn').addEventListener('click', () => togglePanel(false));
+            document.getElementById('showPanelBtn').addEventListener('click', () => togglePanel(true));
+
+            // Map controls
+            document.getElementById('zoomInBtn').addEventListener('click', () => state.map.zoomIn());
+            document.getElementById('zoomOutBtn').addEventListener('click', () => state.map.zoomOut());
+            document.getElementById('rotateBtn').addEventListener('click', resetView);
+            document.getElementById('locateBtn').addEventListener('click', locateUser);
+
+            // Basemap selector
+            document.querySelectorAll('.basemap-option').forEach(option => {
+                option.addEventListener('click', () => changeBasemap(option.dataset.basemap));
+            });
+
+            // Route selection
+            document.getElementById('selectStartBtn').addEventListener('click', () => startSelection('start'));
+            document.getElementById('selectEndBtn').addEventListener('click', () => startSelection('end'));
+            document.getElementById('cancelSelectionBtn').addEventListener('click', cancelSelection);
+            document.getElementById('calculateRouteBtn').addEventListener('click', calculateRoute);
+            document.getElementById('clearRouteBtn').addEventListener('click', clearRoute);
+
+            // Use my location buttons
+            document.getElementById('useMyLocationStartBtn').addEventListener('click', () => useMyLocationAs('start'));
+            document.getElementById('useMyLocationEndBtn').addEventListener('click', () => useMyLocationAs('end'));
+
+            // Transport modes
+            document.querySelectorAll('.route-mode').forEach(mode => {
+                mode.addEventListener('click', () => selectTransportMode(mode.dataset.mode));
+            });
+
+            // File upload
+            const fileUpload = document.getElementById('fileUpload');
+            const fileInput = document.getElementById('fileInput');
+            
+            fileUpload.addEventListener('click', () => fileInput.click());
+            fileUpload.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                fileUpload.style.borderColor = 'var(--accent)';
+            });
+            fileUpload.addEventListener('dragleave', () => {
+                fileUpload.style.borderColor = 'var(--border)';
+            });
+            fileUpload.addEventListener('drop', handleFileDrop);
+            fileInput.addEventListener('change', handleFileSelect);
+
+            // Map click
+            state.map.on('click', handleMapClick);
+        }
+
+        // ==========================================
+        // Gestion des onglets
+        // ==========================================
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+            document.getElementById(`${tabId}Tab`).classList.add('active');
+        }
+
+        // ==========================================
+        // Gestion du panel
+        // ==========================================
+
+        function togglePanel(show) {
+            const panel = document.getElementById('sidePanel');
+            const showBtn = document.getElementById('showPanelBtn');
+            
+            if (typeof show === 'boolean') {
+                panel.classList.toggle('collapsed', !show);
+            } else {
+                panel.classList.toggle('collapsed');
+            }
+            
+            showBtn.classList.toggle('visible', panel.classList.contains('collapsed'));
+        }
+
+        // ==========================================
+        // Changement de fond de carte
+        // ==========================================
+
+        function changeBasemap(basemapId) {
+            if (state.currentBasemap === basemapId) return;
+
+            // Retirer l'ancien fond
+            state.map.removeLayer(state.basemaps[state.currentBasemap]);
+            
+            // Ajouter le nouveau fond
+            state.basemaps[basemapId].addTo(state.map);
+            state.basemaps[basemapId].bringToBack();
+            
+            // Mettre à jour l'UI
+            document.querySelectorAll('.basemap-option').forEach(opt => {
+                opt.classList.toggle('active', opt.dataset.basemap === basemapId);
+            });
+            
+            state.currentBasemap = basemapId;
+        }
+
+        // ==========================================
+        // Géolocalisation
+        // ==========================================
+
+        function useMyLocationAs(type) {
+            if (!navigator.geolocation) {
+                showStatus('Géolocalisation non supportée', 'error');
+                return;
+            }
+
+            const btnId = type === 'start' ? 'useMyLocationStartBtn' : 'useMyLocationEndBtn';
+            const btn = document.getElementById(btnId);
+            const originalContent = btn.innerHTML;
+            
+            // État de chargement
+            btn.innerHTML = '<div class="spinner"></div>';
+            btn.classList.add('loading');
+            
+            showStatus('Localisation en cours...', '');
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    
+                    if (type === 'start') {
+                        setStartPoint(latitude, longitude);
+                    } else {
+                        setEndPoint(latitude, longitude);
+                    }
+                    
+                    // Mettre à jour le marqueur utilisateur aussi
+                    updateUserMarker(latitude, longitude);
+                    
+                    // Centrer la carte
+                    state.map.setView([latitude, longitude], Math.max(state.map.getZoom(), 14));
+                    
+                    // Restaurer le bouton
+                    btn.innerHTML = originalContent;
+                    btn.classList.remove('loading');
+                    
+                    const typeText = type === 'start' ? 'départ' : 'arrivée';
+                    showStatus(`Position définie comme point de ${typeText}`, 'success');
+                },
+                (error) => {
+                    let message = 'Erreur de géolocalisation';
+                    switch (error.code) {
+                        case error.PERMISSION_DENIED:
+                            message = 'Accès à la position refusé';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            message = 'Position non disponible';
+                            break;
+                        case error.TIMEOUT:
+                            message = 'Délai dépassé';
+                            break;
+                    }
+                    showStatus(message, 'error');
+                    
+                    // Restaurer le bouton
+                    btn.innerHTML = originalContent;
+                    btn.classList.remove('loading');
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        }
+
+        function updateUserMarker(lat, lng) {
+            // Supprimer l'ancien marqueur utilisateur
+            if (state.userMarker) {
+                state.map.removeLayer(state.userMarker);
+            }
+            
+            // Créer le marqueur utilisateur
+            const userIcon = L.divIcon({
+                className: 'custom-marker',
+                html: '<div class="marker-user"></div>',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+            
+            state.userMarker = L.marker([lat, lng], { icon: userIcon })
+                .addTo(state.map)
+                .bindPopup('📍 Votre position');
+        }
+
+        function locateUser() {
+            if (!navigator.geolocation) {
+                showStatus('Géolocalisation non supportée', 'error');
+                return;
+            }
+
+            showStatus('Localisation en cours...', '');
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    
+                    updateUserMarker(latitude, longitude);
+                    
+                    state.map.setView([latitude, longitude], 15);
+                    showStatus('Position trouvée !', 'success');
+                },
+                (error) => {
+                    let message = 'Erreur de géolocalisation';
+                    switch (error.code) {
+                        case error.PERMISSION_DENIED:
+                            message = 'Accès à la position refusé';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            message = 'Position non disponible';
+                            break;
+                        case error.TIMEOUT:
+                            message = 'Délai dépassé';
+                            break;
+                    }
+                    showStatus(message, 'error');
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        }
+
+        // ==========================================
+        // Sélection de points
+        // ==========================================
+
+        function startSelection(type) {
+            state.selectionMode = type;
+            const modeText = type === 'start' ? 'le point de départ' : "le point d'arrivée";
+            document.getElementById('selectionText').textContent = `Cliquez sur la carte pour sélectionner ${modeText}`;
+            document.getElementById('selectionMode').classList.add('visible');
+            document.getElementById('map').style.cursor = 'crosshair';
+        }
+
+        function cancelSelection() {
+            state.selectionMode = null;
+            document.getElementById('selectionMode').classList.remove('visible');
+            document.getElementById('map').style.cursor = '';
+        }
+
+        function handleMapClick(e) {
+            if (!state.selectionMode) return;
+            
+            const { lat, lng } = e.latlng;
+            
+            if (state.selectionMode === 'start') {
+                setStartPoint(lat, lng);
+            } else if (state.selectionMode === 'end') {
+                setEndPoint(lat, lng);
+            }
+            
+            cancelSelection();
+        }
+
+        function setStartPoint(lat, lng) {
+            // Supprimer l'ancien marqueur
+            if (state.startMarker) {
+                state.map.removeLayer(state.startMarker);
+            }
+            
+            // Créer le nouveau marqueur
+            const startIcon = L.divIcon({
+                className: 'custom-marker',
+                html: '<div class="marker-start"></div>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+            
+            state.startMarker = L.marker([lat, lng], { icon: startIcon, draggable: true })
+                .addTo(state.map)
+                .bindPopup('🟢 Point de départ');
+            
+            state.startMarker.on('dragend', (e) => {
+                const pos = e.target.getLatLng();
+                document.getElementById('startInput').value = `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
+            });
+            
+            document.getElementById('startInput').value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+            showStatus('Point de départ défini', 'success');
+        }
+
+        function setEndPoint(lat, lng) {
+            // Supprimer l'ancien marqueur
+            if (state.endMarker) {
+                state.map.removeLayer(state.endMarker);
+            }
+            
+            // Créer le nouveau marqueur
+            const endIcon = L.divIcon({
+                className: 'custom-marker',
+                html: '<div class="marker-end"></div>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+            
+            state.endMarker = L.marker([lat, lng], { icon: endIcon, draggable: true })
+                .addTo(state.map)
+                .bindPopup('🔴 Point d\'arrivée');
+            
+            state.endMarker.on('dragend', (e) => {
+                const pos = e.target.getLatLng();
+                document.getElementById('endInput').value = `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
+            });
+            
+            document.getElementById('endInput').value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+            showStatus('Point d\'arrivée défini', 'success');
+        }
+
+        // ==========================================
+        // Mode de transport
+        // ==========================================
+
+        function selectTransportMode(mode) {
+            state.transportMode = mode;
+            document.querySelectorAll('.route-mode').forEach(m => {
+                m.classList.toggle('active', m.dataset.mode === mode);
+            });
+        }
+
+        // ==========================================
+        // Calcul d'itinéraire
+        // ==========================================
+
+        function calculateRoute() {
+            if (!state.startMarker || !state.endMarker) {
+                showStatus('Veuillez définir les points de départ et d\'arrivée', 'error');
+                return;
+            }
+
+            // Effacer l'ancien itinéraire
+            if (state.routeControl) {
+                state.map.removeControl(state.routeControl);
+            }
+            if (state.routeLayer) {
+                state.map.removeLayer(state.routeLayer);
+            }
+
+            showStatus('Calcul de l\'itinéraire...', '');
+
+            const start = state.startMarker.getLatLng();
+            const end = state.endMarker.getLatLng();
+
+            // Profil OSRM
+            const profiles = {
+                car: 'car',
+                foot: 'foot',
+                bike: 'bike'
+            };
+
+            state.routeControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(start.lat, start.lng),
+                    L.latLng(end.lat, end.lng)
+                ],
+                router: L.Routing.osrmv1({
+                    serviceUrl: 'https://router.project-osrm.org/route/v1',
+                    profile: profiles[state.transportMode]
+                }),
+                lineOptions: {
+                    styles: [
+                        { color: '#00d4aa', weight: 6, opacity: 0.8 },
+                        { color: '#ffffff', weight: 2, opacity: 0.3 }
+                    ]
+                },
+                show: false,
+                addWaypoints: false,
+                routeWhileDragging: false,
+                fitSelectedRoutes: true,
+                showAlternatives: false
+            }).addTo(state.map);
+
+            state.routeControl.on('routesfound', (e) => {
+                const route = e.routes[0];
+                const distance = route.summary.totalDistance;
+                const time = route.summary.totalTime;
+
+                // Afficher les stats
+                document.getElementById('routeDistance').textContent = formatDistance(distance);
+                document.getElementById('routeTime').textContent = formatTime(time);
+                document.getElementById('routeInfo').classList.add('visible');
+                document.getElementById('clearRouteBtn').style.display = 'block';
+
+                showStatus('Itinéraire calculé !', 'success');
+            });
+
+            state.routeControl.on('routingerror', (e) => {
+                showStatus('Erreur lors du calcul de l\'itinéraire', 'error');
+            });
+        }
+
+        function clearRoute() {
+            if (state.routeControl) {
+                state.map.removeControl(state.routeControl);
+                state.routeControl = null;
+            }
+            if (state.startMarker) {
+                state.map.removeLayer(state.startMarker);
+                state.startMarker = null;
+            }
+            if (state.endMarker) {
+                state.map.removeLayer(state.endMarker);
+                state.endMarker = null;
+            }
+
+            document.getElementById('startInput').value = '';
+            document.getElementById('endInput').value = '';
+            document.getElementById('routeInfo').classList.remove('visible');
+            document.getElementById('clearRouteBtn').style.display = 'none';
+
+            showStatus('Itinéraire effacé', 'success');
+        }
+
+        function formatDistance(meters) {
+            if (meters >= 1000) {
+                return (meters / 1000).toFixed(1) + ' km';
+            }
+            return Math.round(meters) + ' m';
+        }
+
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            
+            if (hours > 0) {
+                return `${hours}h ${minutes}min`;
+            }
+            return `${minutes} min`;
+        }
+
+        // ==========================================
+        // Gestion des couches
+        // ==========================================
+
+        function handleFileDrop(e) {
+            e.preventDefault();
+            document.getElementById('fileUpload').style.borderColor = 'var(--border)';
+            
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                processFile(file);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processFile(file);
+            }
+        }
+
+        function processFile(file) {
+            const extension = file.name.split('.').pop().toLowerCase();
+            
+            showStatus(`Chargement de ${file.name}...`, '');
+            
+            if (extension === 'geojson' || extension === 'json') {
+                loadGeoJSON(file);
+            } else if (extension === 'zip') {
+                loadShapefile(file);
+            } else if (extension === 'kml') {
+                loadKML(file);
+            } else {
+                showStatus('Format non supporté', 'error');
+            }
+        }
+
+        function loadGeoJSON(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const geojson = JSON.parse(e.target.result);
+                    addGeoJSONLayer(geojson, file.name);
+                } catch (error) {
+                    showStatus('Erreur de lecture du fichier GeoJSON', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function loadShapefile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                shp(e.target.result).then((geojson) => {
+                    addGeoJSONLayer(geojson, file.name);
+                }).catch((error) => {
+                    showStatus('Erreur de lecture du Shapefile', 'error');
+                    console.error(error);
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function loadKML(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const parser = new DOMParser();
+                    const kml = parser.parseFromString(e.target.result, 'text/xml');
+                    const geojson = toGeoJSON.kml(kml);
+                    addGeoJSONLayer(geojson, file.name);
+                } catch (error) {
+                    showStatus('Erreur de lecture du fichier KML', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function addGeoJSONLayer(geojson, name) {
+            const layerId = 'layer_' + Date.now();
+            const color = getRandomColor();
+            
+            const layer = L.geoJSON(geojson, {
+                style: {
+                    color: color,
+                    weight: 2,
+                    fillOpacity: 0.3
+                },
+                pointToLayer: (feature, latlng) => {
+                    return L.circleMarker(latlng, {
+                        radius: 8,
+                        fillColor: color,
+                        color: '#fff',
+                        weight: 2,
+                        fillOpacity: 0.8
+                    });
+                },
+                onEachFeature: (feature, layer) => {
+                    if (feature.properties) {
+                        const props = Object.entries(feature.properties)
+                            .filter(([k, v]) => v != null && v !== '')
+                            .map(([k, v]) => `<strong>${k}:</strong> ${v}`)
+                            .join('<br>');
+                        if (props) {
+                            layer.bindPopup(props);
+                        }
+                    }
+                }
+            }).addTo(state.map);
+
+            // Stocker la couche
+            state.customLayers.push({
+                id: layerId,
+                name: name,
+                layer: layer,
+                color: color
+            });
+
+            // Ajouter à la liste
+            addLayerToList(layerId, name, 'GeoJSON', color);
+
+            // Zoomer sur la couche
+            state.map.fitBounds(layer.getBounds());
+
+            showStatus(`Couche "${name}" ajoutée`, 'success');
+        }
+
+        function addLayerToList(id, name, type, color) {
+            const layerList = document.getElementById('layerList');
+            const layerItem = document.createElement('div');
+            layerItem.className = 'layer-item';
+            layerItem.id = id;
+            layerItem.innerHTML = `
+                <input type="checkbox" class="layer-checkbox" checked data-layer="${id}">
+                <div style="width: 12px; height: 12px; background: ${color}; border-radius: 3px;"></div>
+                <div class="layer-info">
+                    <div class="layer-name">${name}</div>
+                    <div class="layer-type">${type}</div>
+                </div>
+                <button class="layer-remove" data-layer="${id}">🗑️</button>
+            `;
+
+            layerList.appendChild(layerItem);
+
+            // Event listeners
+            layerItem.querySelector('.layer-checkbox').addEventListener('change', (e) => {
+                toggleLayer(id, e.target.checked);
+            });
+
+            layerItem.querySelector('.layer-remove').addEventListener('click', () => {
+                removeLayer(id);
+            });
+        }
+
+        function toggleLayer(id, visible) {
+            const layerData = state.customLayers.find(l => l.id === id);
+            if (layerData) {
+                if (visible) {
+                    state.map.addLayer(layerData.layer);
+                } else {
+                    state.map.removeLayer(layerData.layer);
+                }
+            }
+        }
+
+        function removeLayer(id) {
+            const index = state.customLayers.findIndex(l => l.id === id);
+            if (index !== -1) {
+                state.map.removeLayer(state.customLayers[index].layer);
+                state.customLayers.splice(index, 1);
+                document.getElementById(id).remove();
+                showStatus('Couche supprimée', 'success');
+            }
+        }
+
+        function getRandomColor() {
+            const colors = [
+                '#e63946', '#f4a261', '#2a9d8f', '#e9c46a', 
+                '#264653', '#a8dadc', '#457b9d', '#f72585',
+                '#7209b7', '#3a0ca3', '#4361ee', '#4cc9f0'
+            ];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        // ==========================================
+        // Utilitaires
+        // ==========================================
+
+        function resetView() {
+            state.map.setView(CONFIG.defaultCenter, CONFIG.defaultZoom);
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = 'status-message visible ' + type;
+            
+            setTimeout(() => {
+                statusEl.classList.remove('visible');
+            }, 3000);
+        }
+
+        // ==========================================
+        // KML Parser (toGeoJSON)
+        // ==========================================
+
+        const toGeoJSON = {
+            kml: function(doc) {
+                const geojson = {
+                    type: 'FeatureCollection',
+                    features: []
+                };
+
+                const placemarks = doc.getElementsByTagName('Placemark');
+                
+                for (let i = 0; i < placemarks.length; i++) {
+                    const placemark = placemarks[i];
+                    const feature = {
+                        type: 'Feature',
+                        properties: {},
+                        geometry: null
+                    };
+
+                    // Name
+                    const name = placemark.getElementsByTagName('name')[0];
+                    if (name) {
+                        feature.properties.name = name.textContent;
+                    }
+
+                    // Description
+                    const desc = placemark.getElementsByTagName('description')[0];
+                    if (desc) {
+                        feature.properties.description = desc.textContent;
+                    }
+
+                    // Point
+                    const point = placemark.getElementsByTagName('Point')[0];
+                    if (point) {
+                        const coords = point.getElementsByTagName('coordinates')[0].textContent.trim().split(',');
+                        feature.geometry = {
+                            type: 'Point',
+                            coordinates: [parseFloat(coords[0]), parseFloat(coords[1])]
+                        };
+                    }
+
+                    // LineString
+                    const line = placemark.getElementsByTagName('LineString')[0];
+                    if (line) {
+                        const coordsText = line.getElementsByTagName('coordinates')[0].textContent.trim();
+                        const coords = coordsText.split(/\s+/).map(c => {
+                            const parts = c.split(',');
+                            return [parseFloat(parts[0]), parseFloat(parts[1])];
+                        });
+                        feature.geometry = {
+                            type: 'LineString',
+                            coordinates: coords
+                        };
+                    }
+
+                    // Polygon
+                    const polygon = placemark.getElementsByTagName('Polygon')[0];
+                    if (polygon) {
+                        const outerBoundary = polygon.getElementsByTagName('outerBoundaryIs')[0];
+                        const coordsText = outerBoundary.getElementsByTagName('coordinates')[0].textContent.trim();
+                        const coords = coordsText.split(/\s+/).map(c => {
+                            const parts = c.split(',');
+                            return [parseFloat(parts[0]), parseFloat(parts[1])];
+                        });
+                        feature.geometry = {
+                            type: 'Polygon',
+                            coordinates: [coords]
+                        };
+                    }
+
+                    if (feature.geometry) {
+                        geojson.features.push(feature);
+                    }
+                }
+
+                return geojson;
+            }
+        };
+
+        // ==========================================
+        // Initialisation au chargement
+        // ==========================================
+
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
