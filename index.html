@@ -362,6 +362,88 @@
             text-transform: uppercase;
         }
         
+        /* Affichage vol d'oiseau */
+        .route-stats-bird {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .bird-compass {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .compass-circle {
+            width: 65px;
+            height: 65px;
+            border: 3px solid var(--accent);
+            border-radius: 50%;
+            position: relative;
+            background: rgba(0, 0, 0, 0.3);
+        }
+        
+        .compass-arrow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 4px;
+            height: 24px;
+            background: linear-gradient(to top, var(--accent) 50%, #ff6b6b 50%);
+            transform-origin: bottom center;
+            transform: translate(-50%, -100%) rotate(0deg);
+            border-radius: 2px;
+            transition: transform 0.3s ease;
+        }
+        
+        .compass-n {
+            position: absolute;
+            top: 3px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.6rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        
+        .compass-bearing {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        
+        .bird-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .bird-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+        }
+        
+        .bird-value {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        
+        .bird-label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+        
         /* Légende */
         .legend {
             background: rgba(0, 0, 0, 0.3);
@@ -928,9 +1010,28 @@
             text-transform: uppercase;
         }
         
-        .mapping-select {
+        .mapping-item .form-input {
             padding: 8px 10px;
             font-size: 0.8rem;
+            cursor: pointer;
+        }
+        
+        .mapping-item .autocomplete-list {
+            max-height: 200px;
+            min-width: 250px;
+            width: max-content;
+        }
+        
+        /* Pour les champs à droite (2ème colonne), afficher la liste vers la gauche */
+        .mapping-item:nth-child(even) .autocomplete-list {
+            right: 0;
+            left: auto;
+        }
+        
+        /* Pour les champs à gauche (1ère colonne), afficher la liste vers la droite */
+        .mapping-item:nth-child(odd) .autocomplete-list {
+            left: 0;
+            right: auto;
         }
         
         .excel-preview {
@@ -1065,6 +1166,14 @@
                                 <small>Choisir un repère comme départ</small>
                             </span>
                         </label>
+                        <label class="radio-option">
+                            <input type="radio" name="depart" value="carte">
+                            <span class="radio-dot"></span>
+                            <span class="radio-text">
+                                Point sur la carte
+                                <small id="departCarteStatus">Cliquez sur la carte</small>
+                            </span>
+                        </label>
                     </div>
                 </div>
                 
@@ -1081,6 +1190,14 @@
                 <div class="form-group">
                     <label class="form-label">Point d'arrivée</label>
                     <div class="radio-group" id="arriveeGroup">
+                        <label class="radio-option">
+                            <input type="radio" name="arrivee" value="position">
+                            <span class="radio-dot"></span>
+                            <span class="radio-text">
+                                Ma position GPS
+                                <small id="positionStatusArrivee">Non localisé</small>
+                            </span>
+                        </label>
                         <label class="radio-option selected">
                             <input type="radio" name="arrivee" value="placette" checked>
                             <span class="radio-dot"></span>
@@ -1095,6 +1212,14 @@
                             <span class="radio-text">
                                 Point de repère
                                 <small>Naviguer vers un repère</small>
+                            </span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="arrivee" value="carte">
+                            <span class="radio-dot"></span>
+                            <span class="radio-text">
+                                Point sur la carte
+                                <small id="arriveeCarteStatus">Cliquez sur la carte</small>
                             </span>
                         </label>
                     </div>
@@ -1136,6 +1261,13 @@
                             </svg>
                             <span>Vélo</span>
                         </div>
+                        <div class="transport-mode" data-mode="bird">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 12c0-3-2.5-5-5-5-1.5 0-3 .5-4 2l-2 3-4-2c-2-1-5 0-5 3 0 2 1 3 3 3h6"/>
+                                <path d="M18 16l4-4-4-4"/>
+                            </svg>
+                            <span>Vol d'oiseau</span>
+                        </div>
                     </div>
                 </div>
                 
@@ -1147,7 +1279,8 @@
                 </button>
                 
                 <div class="route-result" id="routeResult">
-                    <div class="route-stats">
+                    <!-- Affichage standard (voiture, pied, vélo) -->
+                    <div class="route-stats" id="routeStatsNormal">
                         <div class="stat-item">
                             <div class="stat-value" id="routeDistance">--</div>
                             <div class="stat-label">Distance</div>
@@ -1155,6 +1288,31 @@
                         <div class="stat-item">
                             <div class="stat-value" id="routeTime">--</div>
                             <div class="stat-label">Durée</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Affichage vol d'oiseau -->
+                    <div class="route-stats-bird" id="routeStatsBird" style="display: none;">
+                        <div class="bird-compass">
+                            <div class="compass-circle">
+                                <div class="compass-arrow" id="compassArrow"></div>
+                                <div class="compass-n">N</div>
+                            </div>
+                            <div class="compass-bearing" id="compassBearing">--°</div>
+                        </div>
+                        <div class="bird-info">
+                            <div class="bird-stat">
+                                <div class="bird-value" id="birdDistance">--</div>
+                                <div class="bird-label">Distance</div>
+                            </div>
+                            <div class="bird-stat">
+                                <div class="bird-value" id="birdTime">--</div>
+                                <div class="bird-label">Durée estimée</div>
+                            </div>
+                            <div class="bird-stat">
+                                <div class="bird-value" id="birdDirection">--</div>
+                                <div class="bird-label">Direction</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1257,44 +1415,88 @@
                     
                     <div class="mapping-grid">
                         <div class="mapping-item">
-                            <label>Code/ID</label>
-                            <select class="form-select mapping-select" id="mapId"></select>
+                            <label>Code/ID *</label>
+                            <div class="autocomplete-wrapper">
+                                <div class="autocomplete-list" id="mapIdList"></div>
+                                <input type="text" class="form-input" id="mapId" placeholder="-- Non mappé --" autocomplete="off" readonly>
+                            </div>
                         </div>
                         <div class="mapping-item">
-                            <label>X (Longitude)</label>
-                            <select class="form-select mapping-select" id="mapX"></select>
+                            <label>X (Longitude) *</label>
+                            <div class="autocomplete-wrapper">
+                                <div class="autocomplete-list" id="mapXList"></div>
+                                <input type="text" class="form-input" id="mapX" placeholder="-- Non mappé --" autocomplete="off" readonly>
+                            </div>
                         </div>
                         <div class="mapping-item">
-                            <label>Y (Latitude)</label>
-                            <select class="form-select mapping-select" id="mapY"></select>
+                            <label>Y (Latitude) *</label>
+                            <div class="autocomplete-wrapper">
+                                <div class="autocomplete-list" id="mapYList"></div>
+                                <input type="text" class="form-input" id="mapY" placeholder="-- Non mappé --" autocomplete="off" readonly>
+                            </div>
                         </div>
                         <div class="mapping-item">
                             <label>X Repère</label>
-                            <select class="form-select mapping-select" id="mapXRepere"></select>
+                            <div class="autocomplete-wrapper">
+                                <div class="autocomplete-list" id="mapXRepereList"></div>
+                                <input type="text" class="form-input" id="mapXRepere" placeholder="-- Non mappé --" autocomplete="off" readonly>
+                            </div>
                         </div>
                         <div class="mapping-item">
                             <label>Y Repère</label>
-                            <select class="form-select mapping-select" id="mapYRepere"></select>
+                            <div class="autocomplete-wrapper">
+                                <div class="autocomplete-list" id="mapYRepereList"></div>
+                                <input type="text" class="form-input" id="mapYRepere" placeholder="-- Non mappé --" autocomplete="off" readonly>
+                            </div>
                         </div>
                         <div class="mapping-item">
                             <label>Pente</label>
-                            <select class="form-select mapping-select" id="mapPente"></select>
+                            <div class="autocomplete-wrapper">
+                                <div class="autocomplete-list" id="mapPenteList"></div>
+                                <input type="text" class="form-input" id="mapPente" placeholder="-- Non mappé --" autocomplete="off" readonly>
+                            </div>
                         </div>
                         <div class="mapping-item">
                             <label>Azimut</label>
-                            <select class="form-select mapping-select" id="mapAzimut"></select>
+                            <div class="autocomplete-wrapper">
+                                <div class="autocomplete-list" id="mapAzimutList"></div>
+                                <input type="text" class="form-input" id="mapAzimut" placeholder="-- Non mappé --" autocomplete="off" readonly>
+                            </div>
                         </div>
                         <div class="mapping-item">
                             <label>Distance</label>
-                            <select class="form-select mapping-select" id="mapDistance"></select>
+                            <div class="autocomplete-wrapper">
+                                <div class="autocomplete-list" id="mapDistanceList"></div>
+                                <input type="text" class="form-input" id="mapDistance" placeholder="-- Non mappé --" autocomplete="off" readonly>
+                            </div>
                         </div>
                         <div class="mapping-item">
                             <label>Altitude</label>
-                            <select class="form-select mapping-select" id="mapAltitude"></select>
+                            <div class="autocomplete-wrapper">
+                                <div class="autocomplete-list" id="mapAltitudeList"></div>
+                                <input type="text" class="form-input" id="mapAltitude" placeholder="-- Non mappé --" autocomplete="off" readonly>
+                            </div>
                         </div>
                         <div class="mapping-item">
                             <label>Exposition</label>
-                            <select class="form-select mapping-select" id="mapExposition"></select>
+                            <div class="autocomplete-wrapper">
+                                <div class="autocomplete-list" id="mapExpositionList"></div>
+                                <input type="text" class="form-input" id="mapExposition" placeholder="-- Non mappé --" autocomplete="off" readonly>
+                            </div>
+                        </div>
+                        <div class="mapping-item">
+                            <label>Description repère</label>
+                            <div class="autocomplete-wrapper">
+                                <div class="autocomplete-list" id="mapDescriptionRepereList"></div>
+                                <input type="text" class="form-input" id="mapDescriptionRepere" placeholder="-- Non mappé --" autocomplete="off" readonly>
+                            </div>
+                        </div>
+                        <div class="mapping-item">
+                            <label>Strate</label>
+                            <div class="autocomplete-wrapper">
+                                <div class="autocomplete-list" id="mapStrateList"></div>
+                                <input type="text" class="form-input" id="mapStrate" placeholder="-- Non mappé --" autocomplete="off" readonly>
+                            </div>
                         </div>
                     </div>
                     
@@ -1421,7 +1623,17 @@
             selectedDepartPlacette: null,
             selectedArriveePlacette: null,
             showPlacettes: true,
-            showReperes: true
+            showReperes: true,
+            // Points sélectionnés sur la carte
+            departCartePoint: null,
+            arriveeCartePoint: null,
+            departCarteMarker: null,
+            arriveeCarteMarker: null,
+            selectingPointFor: null, // 'depart' ou 'arrivee'
+            // Vol d'oiseau
+            birdLine: null,
+            birdMarkerStart: null,
+            birdMarkerEnd: null
         };
         
         // Données par défaut (sauvegarde)
@@ -1489,6 +1701,34 @@
                 </style>`,
                 iconSize: [20, 20],
                 iconAnchor: [10, 10]
+            }),
+            departCarte: L.divIcon({
+                className: 'custom-marker',
+                html: `<div style="
+                    width: 28px; height: 28px;
+                    background: linear-gradient(135deg, #4285f4, #6fa3f7);
+                    border: 3px solid white;
+                    border-radius: 50%;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                    display: flex; align-items: center; justify-content: center;
+                    color: white; font-weight: bold; font-size: 14px;
+                ">D</div>`,
+                iconSize: [28, 28],
+                iconAnchor: [14, 14]
+            }),
+            arriveeCarte: L.divIcon({
+                className: 'custom-marker',
+                html: `<div style="
+                    width: 28px; height: 28px;
+                    background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+                    border: 3px solid white;
+                    border-radius: 50%;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                    display: flex; align-items: center; justify-content: center;
+                    color: white; font-weight: bold; font-size: 14px;
+                ">A</div>`,
+                iconSize: [28, 28],
+                iconAnchor: [14, 14]
             })
         };
         
@@ -1525,6 +1765,9 @@
             };
             
             state.baseLayers.hybrid.addTo(state.map);
+            
+            // Event de clic sur la carte pour sélectionner un point
+            state.map.on('click', handleMapClick);
             
             // Créer les couches de placettes et repères
             createPlacettesLayers();
@@ -1745,6 +1988,80 @@
         }
         
         // ============================================
+        // SÉLECTION DE POINT SUR LA CARTE
+        // ============================================
+        function handleMapClick(e) {
+            // Vérifier si on est en mode sélection de point
+            if (!state.selectingPointFor) return;
+            
+            const latlng = e.latlng;
+            
+            if (state.selectingPointFor === 'depart') {
+                // Supprimer l'ancien marqueur
+                if (state.departCarteMarker) {
+                    state.map.removeLayer(state.departCarteMarker);
+                }
+                
+                // Créer le nouveau marqueur
+                state.departCarteMarker = L.marker([latlng.lat, latlng.lng], { 
+                    icon: icons.departCarte,
+                    draggable: true
+                }).addTo(state.map);
+                
+                // Mettre à jour le point
+                state.departCartePoint = { lat: latlng.lat, lng: latlng.lng };
+                
+                // Permettre de déplacer le marqueur
+                state.departCarteMarker.on('dragend', function(e) {
+                    const pos = e.target.getLatLng();
+                    state.departCartePoint = { lat: pos.lat, lng: pos.lng };
+                    document.getElementById('departCarteStatus').textContent = 
+                        `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
+                });
+                
+                // Mettre à jour le statut
+                document.getElementById('departCarteStatus').textContent = 
+                    `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
+                
+            } else if (state.selectingPointFor === 'arrivee') {
+                // Supprimer l'ancien marqueur
+                if (state.arriveeCarteMarker) {
+                    state.map.removeLayer(state.arriveeCarteMarker);
+                }
+                
+                // Créer le nouveau marqueur
+                state.arriveeCarteMarker = L.marker([latlng.lat, latlng.lng], { 
+                    icon: icons.arriveeCarte,
+                    draggable: true
+                }).addTo(state.map);
+                
+                // Mettre à jour le point
+                state.arriveeCartePoint = { lat: latlng.lat, lng: latlng.lng };
+                
+                // Permettre de déplacer le marqueur
+                state.arriveeCarteMarker.on('dragend', function(e) {
+                    const pos = e.target.getLatLng();
+                    state.arriveeCartePoint = { lat: pos.lat, lng: pos.lng };
+                    document.getElementById('arriveeCarteStatus').textContent = 
+                        `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`;
+                });
+                
+                // Mettre à jour le statut
+                document.getElementById('arriveeCarteStatus').textContent = 
+                    `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
+            }
+            
+            // Désactiver le mode sélection
+            state.selectingPointFor = null;
+            state.map.getContainer().style.cursor = '';
+        }
+        
+        function enableMapPointSelection(type) {
+            state.selectingPointFor = type;
+            state.map.getContainer().style.cursor = 'crosshair';
+        }
+        
+        // ============================================
         // GÉOLOCALISATION
         // ============================================
         function locateUser() {
@@ -1776,9 +2093,10 @@
                     
                     state.map.setView([state.userPosition.lat, state.userPosition.lng], 14);
                     
-                    // Mettre à jour le statut
-                    document.getElementById('positionStatus').textContent = 
-                        `${state.userPosition.lat.toFixed(5)}, ${state.userPosition.lng.toFixed(5)}`;
+                    // Mettre à jour le statut (départ et arrivée)
+                    const posText = `${state.userPosition.lat.toFixed(5)}, ${state.userPosition.lng.toFixed(5)}`;
+                    document.getElementById('positionStatus').textContent = posText;
+                    document.getElementById('positionStatusArrivee').textContent = posText;
                     
                     gpsBtn.classList.remove('gps-loading');
                     gpsBtn.classList.add('active');
@@ -1814,6 +2132,13 @@
                     return;
                 }
                 startPoint = L.latLng(state.userPosition.lat, state.userPosition.lng);
+            } else if (state.departType === 'carte') {
+                if (!state.departCartePoint) {
+                    alert('Veuillez cliquer sur la carte pour sélectionner un point de départ');
+                    enableMapPointSelection('depart');
+                    return;
+                }
+                startPoint = L.latLng(state.departCartePoint.lat, state.departCartePoint.lng);
             } else {
                 const selectId = state.departType === 'placette' ? 'departPlacetteSelect' : 'departPlacetteSelect';
                 const placetteId = document.getElementById(selectId).value;
@@ -1830,26 +2155,180 @@
             }
             
             // Déterminer le point d'arrivée
-            const arriveePlacetteId = document.getElementById('arriveePlacetteSelect').value;
-            if (!arriveePlacetteId) {
-                alert('Veuillez sélectionner une placette d\'arrivée');
-                return;
-            }
-            const arriveePlacette = PLACETTES_DATA.find(p => p.id === arriveePlacetteId);
-            if (state.arriveeType === 'placette') {
-                endPoint = L.latLng(arriveePlacette.y, arriveePlacette.x);
+            if (state.arriveeType === 'position') {
+                if (!state.userPosition) {
+                    alert('Veuillez d\'abord activer votre GPS');
+                    return;
+                }
+                endPoint = L.latLng(state.userPosition.lat, state.userPosition.lng);
+            } else if (state.arriveeType === 'carte') {
+                if (!state.arriveeCartePoint) {
+                    alert('Veuillez cliquer sur la carte pour sélectionner un point d\'arrivée');
+                    enableMapPointSelection('arrivee');
+                    return;
+                }
+                endPoint = L.latLng(state.arriveeCartePoint.lat, state.arriveeCartePoint.lng);
             } else {
-                endPoint = L.latLng(arriveePlacette.yrepere, arriveePlacette.xrepere);
+                const arriveePlacetteId = document.getElementById('arriveePlacetteSelect').value;
+                if (!arriveePlacetteId) {
+                    alert('Veuillez sélectionner une placette d\'arrivée');
+                    return;
+                }
+                const arriveePlacette = PLACETTES_DATA.find(p => p.id === arriveePlacetteId);
+                if (state.arriveeType === 'placette') {
+                    endPoint = L.latLng(arriveePlacette.y, arriveePlacette.x);
+                } else {
+                    endPoint = L.latLng(arriveePlacette.yrepere, arriveePlacette.xrepere);
+                }
             }
             
-            // Créer l'itinéraire
-            createRoute(startPoint, endPoint);
+            // Créer l'itinéraire ou ligne directe
+            if (state.transportMode === 'bird') {
+                createBirdRoute(startPoint, endPoint);
+            } else {
+                createRoute(startPoint, endPoint);
+            }
+        }
+        
+        function createBirdRoute(start, end) {
+            // Supprimer l'ancien itinéraire
+            if (state.routingControl) {
+                state.map.removeControl(state.routingControl);
+                state.routingControl = null;
+            }
+            
+            // Supprimer l'ancienne ligne vol d'oiseau
+            if (state.birdLine) {
+                state.map.removeLayer(state.birdLine);
+            }
+            if (state.birdMarkerStart) {
+                state.map.removeLayer(state.birdMarkerStart);
+            }
+            if (state.birdMarkerEnd) {
+                state.map.removeLayer(state.birdMarkerEnd);
+            }
+            
+            // Calculer la distance à vol d'oiseau (formule Haversine)
+            const R = 6371e3; // Rayon de la Terre en mètres
+            const lat1 = start.lat * Math.PI / 180;
+            const lat2 = end.lat * Math.PI / 180;
+            const deltaLat = (end.lat - start.lat) * Math.PI / 180;
+            const deltaLng = (end.lng - start.lng) * Math.PI / 180;
+            
+            const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
+                      Math.cos(lat1) * Math.cos(lat2) *
+                      Math.sin(deltaLng/2) * Math.sin(deltaLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            const distance = R * c;
+            
+            // Calculer l'azimut (direction)
+            const y = Math.sin(deltaLng) * Math.cos(lat2);
+            const x = Math.cos(lat1) * Math.sin(lat2) -
+                      Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLng);
+            let bearing = Math.atan2(y, x) * 180 / Math.PI;
+            bearing = (bearing + 360) % 360;
+            
+            // Créer la ligne droite
+            state.birdLine = L.polyline([[start.lat, start.lng], [end.lat, end.lng]], {
+                color: '#ff6b6b',
+                weight: 4,
+                opacity: 0.8,
+                dashArray: '10, 10'
+            }).addTo(state.map);
+            
+            // Marqueur départ
+            state.birdMarkerStart = L.marker([start.lat, start.lng], {
+                icon: L.divIcon({
+                    className: 'bird-marker',
+                    html: `<div style="
+                        width: 24px; height: 24px;
+                        background: #4285f4;
+                        border: 3px solid white;
+                        border-radius: 50%;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                    "></div>`,
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                })
+            }).addTo(state.map);
+            
+            // Marqueur arrivée
+            state.birdMarkerEnd = L.marker([end.lat, end.lng], {
+                icon: L.divIcon({
+                    className: 'bird-marker',
+                    html: `<div style="
+                        width: 24px; height: 24px;
+                        background: #ff6b6b;
+                        border: 3px solid white;
+                        border-radius: 50%;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                    "></div>`,
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                })
+            }).addTo(state.map);
+            
+            // Afficher les résultats
+            let distanceText;
+            if (distance >= 1000) {
+                distanceText = (distance / 1000).toFixed(2) + ' km';
+            } else {
+                distanceText = Math.round(distance) + ' m';
+            }
+            
+            // Calculer la durée estimée (vitesse moyenne en terrain forestier : ~3 km/h = 50m/min)
+            const vitesseMetresParMin = 50; // 3 km/h en terrain difficile
+            const dureeMinutes = Math.round(distance / vitesseMetresParMin);
+            let dureeText;
+            if (dureeMinutes >= 60) {
+                const heures = Math.floor(dureeMinutes / 60);
+                const minutes = dureeMinutes % 60;
+                dureeText = `${heures}h ${minutes}min`;
+            } else {
+                dureeText = `${dureeMinutes} min`;
+            }
+            
+            // Direction cardinale
+            const directions = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+            const dirIndex = Math.round(bearing / 45) % 8;
+            const directionText = directions[dirIndex];
+            
+            // Afficher la section vol d'oiseau, cacher l'autre
+            document.getElementById('routeStatsNormal').style.display = 'none';
+            document.getElementById('routeStatsBird').style.display = 'flex';
+            
+            // Mettre à jour les valeurs
+            document.getElementById('birdDistance').textContent = distanceText;
+            document.getElementById('birdTime').textContent = dureeText;
+            document.getElementById('birdDirection').textContent = directionText;
+            document.getElementById('compassBearing').textContent = `${Math.round(bearing)}°`;
+            document.getElementById('compassArrow').style.transform = `translate(-50%, -100%) rotate(${bearing}deg)`;
+            
+            document.getElementById('routeResult').classList.add('visible');
+            document.getElementById('clearRoute').style.display = 'flex';
+            
+            // Ajuster la vue
+            state.map.fitBounds(state.birdLine.getBounds(), { padding: [50, 50] });
         }
         
         function createRoute(start, end) {
             // Supprimer l'ancien itinéraire
             if (state.routingControl) {
                 state.map.removeControl(state.routingControl);
+            }
+            
+            // Supprimer la ligne vol d'oiseau si présente
+            if (state.birdLine) {
+                state.map.removeLayer(state.birdLine);
+                state.birdLine = null;
+            }
+            if (state.birdMarkerStart) {
+                state.map.removeLayer(state.birdMarkerStart);
+                state.birdMarkerStart = null;
+            }
+            if (state.birdMarkerEnd) {
+                state.map.removeLayer(state.birdMarkerEnd);
+                state.birdMarkerEnd = null;
             }
             
             const profiles = {
@@ -1906,6 +2385,10 @@
                 const distance = route.summary.totalDistance;
                 const time = route.summary.totalTime;
                 
+                // Afficher la section normale, cacher la section vol d'oiseau
+                document.getElementById('routeStatsNormal').style.display = 'grid';
+                document.getElementById('routeStatsBird').style.display = 'none';
+                
                 document.getElementById('routeDistance').textContent = 
                     distance >= 1000 ? (distance / 1000).toFixed(1) + ' km' : Math.round(distance) + ' m';
                 document.getElementById('routeTime').textContent = formatTime(time);
@@ -1919,6 +2402,35 @@
                 state.map.removeControl(state.routingControl);
                 state.routingControl = null;
             }
+            
+            // Nettoyer la ligne vol d'oiseau
+            if (state.birdLine) {
+                state.map.removeLayer(state.birdLine);
+                state.birdLine = null;
+            }
+            if (state.birdMarkerStart) {
+                state.map.removeLayer(state.birdMarkerStart);
+                state.birdMarkerStart = null;
+            }
+            if (state.birdMarkerEnd) {
+                state.map.removeLayer(state.birdMarkerEnd);
+                state.birdMarkerEnd = null;
+            }
+            
+            // Nettoyer les marqueurs de points carte
+            if (state.departCarteMarker) {
+                state.map.removeLayer(state.departCarteMarker);
+                state.departCarteMarker = null;
+                state.departCartePoint = null;
+                document.getElementById('departCarteStatus').textContent = 'Cliquez sur la carte';
+            }
+            if (state.arriveeCarteMarker) {
+                state.map.removeLayer(state.arriveeCarteMarker);
+                state.arriveeCarteMarker = null;
+                state.arriveeCartePoint = null;
+                document.getElementById('arriveeCarteStatus').textContent = 'Cliquez sur la carte';
+            }
+            
             document.getElementById('routeResult').classList.remove('visible');
             document.getElementById('clearRoute').style.display = 'none';
         }
@@ -2074,16 +2586,29 @@
                     const firstSheet = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[firstSheet];
                     
+                    // Récupérer la plage de données pour avoir toutes les colonnes
+                    const range = XLSX.utils.decode_range(worksheet['!ref']);
+                    
+                    // Récupérer les en-têtes (première ligne)
+                    excelColumns = [];
+                    for (let col = range.s.c; col <= range.e.c; col++) {
+                        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+                        const cell = worksheet[cellAddress];
+                        if (cell && cell.v !== undefined) {
+                            excelColumns.push(String(cell.v));
+                        }
+                    }
+                    
                     // Convertir en JSON
-                    excelData = XLSX.utils.sheet_to_json(worksheet);
+                    excelData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
                     
                     if (excelData.length === 0) {
                         alert('Le fichier Excel est vide');
                         return;
                     }
                     
-                    // Récupérer les colonnes
-                    excelColumns = Object.keys(excelData[0]);
+                    console.log('Colonnes détectées:', excelColumns);
+                    console.log('Nombre de lignes:', excelData.length);
                     
                     // Afficher le mapping
                     showExcelMapping(file.name);
@@ -2101,41 +2626,87 @@
             document.getElementById('excelMapping').style.display = 'block';
             document.getElementById('previewCount').textContent = excelData.length;
             
-            // Remplir les selects de mapping
-            const mappingFields = ['mapId', 'mapX', 'mapY', 'mapXRepere', 'mapYRepere', 'mapPente', 'mapAzimut', 'mapDistance', 'mapAltitude', 'mapExposition'];
+            // Remplir les inputs de mapping
+            const mappingFields = ['mapId', 'mapX', 'mapY', 'mapXRepere', 'mapYRepere', 'mapPente', 'mapAzimut', 'mapDistance', 'mapAltitude', 'mapExposition', 'mapDescriptionRepere', 'mapStrate'];
             const defaultMappings = {
                 mapId: ['id', 'code', 'ID', 'CODE', 'Id'],
                 mapX: ['x', 'X', 'longitude', 'lon', 'lng', 'LONGITUDE'],
                 mapY: ['y', 'Y', 'latitude', 'lat', 'LATITUDE'],
-                mapXRepere: ['xrepere', 'Xrepere', 'XREPERE', 'x_repere', 'X_REPERE'],
-                mapYRepere: ['yrepere', 'Yrepere', 'YREPERE', 'y_repere', 'Y_REPERE'],
+                mapXRepere: ['xrepere', 'Xrepere', 'XREPERE', 'x_repere', 'X_REPERE', 'x repere'],
+                mapYRepere: ['yrepere', 'Yrepere', 'YREPERE', 'y_repere', 'Y_REPERE', 'y repere'],
                 mapPente: ['pente', 'Pente', 'PENTE', 'slope'],
-                mapAzimut: ['azimut', 'Azimut', 'AZIMUT', 'repere_azimut', 'azimuth'],
-                mapDistance: ['distance', 'Distance', 'DISTANCE', 'distance_point_repere'],
+                mapAzimut: ['azimut', 'Azimut', 'AZIMUT', 'repere_azimut', 'azimuth', 'REPERE_AZIMUT'],
+                mapDistance: ['distance', 'Distance', 'DISTANCE', 'distance_point_repere', 'DISTANCE_POINT_REPERE', 'dist_repere'],
                 mapAltitude: ['altitude', 'Altitude', 'ALTITUDE', 'elevation', 'alt'],
-                mapExposition: ['exposition', 'Exposition', 'EXPOSITION', 'aspect']
+                mapExposition: ['exposition', 'Exposition', 'EXPOSITION', 'aspect'],
+                mapDescriptionRepere: ['description_repere', 'Description_repere', 'DESCRIPTION_REPERE', 'description', 'desc_repere'],
+                mapStrate: ['strate', 'Strate', 'STRATE', 'strate_cartographique', 'STRATE_CARTOGRAPHIQUE']
             };
             
             mappingFields.forEach(fieldId => {
-                const select = document.getElementById(fieldId);
-                select.innerHTML = '<option value="">-- Non mappé --</option>';
+                const input = document.getElementById(fieldId);
+                const listId = fieldId + 'List';
                 
+                // Trouver la colonne correspondante par défaut
+                let matchedCol = '';
                 excelColumns.forEach(col => {
-                    const option = document.createElement('option');
-                    option.value = col;
-                    option.textContent = col;
-                    
-                    // Auto-sélectionner si correspondance trouvée
-                    if (defaultMappings[fieldId].some(m => col.toLowerCase() === m.toLowerCase())) {
-                        option.selected = true;
+                    const colLower = col.toLowerCase().replace(/[_\s]/g, '');
+                    const matches = defaultMappings[fieldId].some(m => {
+                        const mLower = m.toLowerCase().replace(/[_\s]/g, '');
+                        return colLower === mLower || colLower.includes(mLower) || mLower.includes(colLower);
+                    });
+                    if (matches) {
+                        matchedCol = col;
                     }
-                    
-                    select.appendChild(option);
                 });
+                
+                // Pré-remplir si correspondance trouvée
+                input.value = matchedCol;
+                
+                // Ajouter les événements
+                input.addEventListener('click', () => showColumnList(fieldId, listId));
+                input.addEventListener('focus', () => showColumnList(fieldId, listId));
+            });
+            
+            // Fermer les listes si on clique ailleurs
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.autocomplete-wrapper')) {
+                    mappingFields.forEach(fieldId => {
+                        document.getElementById(fieldId + 'List').classList.remove('visible');
+                    });
+                }
             });
             
             // Afficher l'aperçu
             showExcelPreview();
+        }
+        
+        function showColumnList(inputId, listId) {
+            const list = document.getElementById(listId);
+            const input = document.getElementById(inputId);
+            
+            // Fermer les autres listes
+            document.querySelectorAll('.mapping-item .autocomplete-list').forEach(l => {
+                if (l.id !== listId) l.classList.remove('visible');
+            });
+            
+            // Construire la liste avec toutes les colonnes
+            let html = '<div class="autocomplete-item" data-value="">-- Non mappé --</div>';
+            html += excelColumns.map(col => 
+                `<div class="autocomplete-item" data-value="${col}">${col}</div>`
+            ).join('');
+            
+            list.innerHTML = html;
+            list.classList.add('visible');
+            
+            // Ajouter les événements de clic
+            list.querySelectorAll('.autocomplete-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    input.value = item.dataset.value;
+                    list.classList.remove('visible');
+                });
+            });
         }
         
         function showExcelPreview() {
@@ -2165,7 +2736,9 @@
                 azimut: document.getElementById('mapAzimut').value,
                 distance: document.getElementById('mapDistance').value,
                 altitude: document.getElementById('mapAltitude').value,
-                exposition: document.getElementById('mapExposition').value
+                exposition: document.getElementById('mapExposition').value,
+                description_repere: document.getElementById('mapDescriptionRepere').value,
+                strate: document.getElementById('mapStrate').value
             };
             
             // Vérifier les champs obligatoires
@@ -2199,8 +2772,8 @@
                         distance: mapping.distance ? parseFloat(row[mapping.distance]) || null : null,
                         altitude: mapping.altitude ? parseInt(row[mapping.altitude]) || null : null,
                         exposition: mapping.exposition ? parseInt(row[mapping.exposition]) || null : null,
-                        description_repere: row['description_repere'] || row['Description'] || '',
-                        strate: row['strate_cartographique'] || row['strate'] || ''
+                        description_repere: mapping.description_repere ? (row[mapping.description_repere] || '') : '',
+                        strate: mapping.strate ? (row[mapping.strate] || '') : ''
                     };
                     
                     newPlacettes.push(placette);
@@ -2363,6 +2936,11 @@
                 const label = document.querySelector('#departPlacetteGroup .form-label');
                 label.textContent = type === 'placette' ? 'Placette de départ' : 'Repère de départ (placette associée)';
             }
+            
+            // Activer la sélection sur la carte si type = 'carte'
+            if (type === 'carte') {
+                enableMapPointSelection('depart');
+            }
         }
         
         function updateArriveeType(type) {
@@ -2371,8 +2949,18 @@
                 opt.classList.toggle('selected', opt.querySelector('input').value === type);
             });
             
-            const label = document.querySelector('#arriveePlacetteGroup .form-label');
-            label.textContent = type === 'placette' ? 'Placette d\'arrivée' : 'Repère d\'arrivée (placette associée)';
+            const showSelect = type === 'placette' || type === 'repere';
+            document.getElementById('arriveePlacetteGroup').style.display = showSelect ? 'block' : 'none';
+            
+            if (showSelect) {
+                const label = document.querySelector('#arriveePlacetteGroup .form-label');
+                label.textContent = type === 'placette' ? 'Placette d\'arrivée' : 'Repère d\'arrivée (placette associée)';
+            }
+            
+            // Activer la sélection sur la carte si type = 'carte'
+            if (type === 'carte') {
+                enableMapPointSelection('arrivee');
+            }
         }
         
         // ============================================
