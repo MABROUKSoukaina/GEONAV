@@ -837,6 +837,147 @@
             background: var(--border);
             margin: 20px 0;
         }
+        
+        /* Data tab styles */
+        .data-info {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .data-icon {
+            margin-bottom: 12px;
+        }
+        
+        .data-info h3 {
+            font-size: 1rem;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+        
+        .data-info p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+        
+        .data-stats {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            font-size: 0.85rem;
+        }
+        
+        .data-stats strong {
+            color: var(--accent);
+            font-family: 'Space Mono', monospace;
+        }
+        
+        .excel-drop-zone {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .excel-drop-zone:hover,
+        .excel-drop-zone.dragover {
+            border-color: var(--accent);
+            background: rgba(0, 212, 170, 0.05);
+        }
+        
+        .excel-drop-zone p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+        
+        .excel-drop-zone .excel-formats {
+            font-size: 0.75rem;
+            margin-top: 5px;
+        }
+        
+        .excel-mapping h4 {
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+        
+        .mapping-info {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+        
+        .mapping-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .mapping-item label {
+            display: block;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+        
+        .mapping-select {
+            padding: 8px 10px;
+            font-size: 0.8rem;
+        }
+        
+        .excel-preview {
+            margin: 20px 0;
+        }
+        
+        .excel-preview h4 {
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+        }
+        
+        .preview-table-container {
+            max-height: 200px;
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+        
+        .preview-table th,
+        .preview-table td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+        
+        .preview-table th {
+            background: rgba(0, 212, 170, 0.1);
+            color: var(--accent);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+        
+        .preview-table td {
+            font-family: 'Space Mono', monospace;
+        }
+        
+        .preview-table tbody tr:hover {
+            background: rgba(0, 0, 0, 0.2);
+        }
     </style>
 </head>
 <body>
@@ -860,6 +1001,7 @@
         <div class="tabs">
             <button class="tab active" data-tab="navigation">Navigation</button>
             <button class="tab" data-tab="placettes">Placettes</button>
+            <button class="tab" data-tab="donnees">Données</button>
             <button class="tab" data-tab="layers">Couches</button>
         </div>
         
@@ -1073,6 +1215,118 @@
                 </button>
             </div>
             
+            <!-- Onglet Données -->
+            <div class="tab-content" id="tab-donnees">
+                <div class="data-info">
+                    <div class="data-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                    </div>
+                    <h3>Données actuelles</h3>
+                    <p id="currentDataInfo">Fichier intégré : PROGRAMME_2026_Maille_2x2km_RSK</p>
+                    <div class="data-stats">
+                        <span><strong id="dataPlacettesCount">0</strong> placettes</span>
+                        <span><strong id="dataReperesCount">0</strong> repères</span>
+                    </div>
+                </div>
+                
+                <div class="divider"></div>
+                
+                <div class="form-group">
+                    <label class="form-label">Charger un nouveau fichier Excel</label>
+                    <div class="excel-drop-zone" id="excelDropZone">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <p>Glisser un fichier Excel ici</p>
+                        <p class="excel-formats">Formats acceptés : .xlsx, .xls</p>
+                        <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display: none;">
+                    </div>
+                </div>
+                
+                <div class="excel-mapping" id="excelMapping" style="display: none;">
+                    <h4>Correspondance des colonnes</h4>
+                    <p class="mapping-info">Vérifiez que les colonnes sont correctement identifiées</p>
+                    
+                    <div class="mapping-grid">
+                        <div class="mapping-item">
+                            <label>Code/ID</label>
+                            <select class="form-select mapping-select" id="mapId"></select>
+                        </div>
+                        <div class="mapping-item">
+                            <label>X (Longitude)</label>
+                            <select class="form-select mapping-select" id="mapX"></select>
+                        </div>
+                        <div class="mapping-item">
+                            <label>Y (Latitude)</label>
+                            <select class="form-select mapping-select" id="mapY"></select>
+                        </div>
+                        <div class="mapping-item">
+                            <label>X Repère</label>
+                            <select class="form-select mapping-select" id="mapXRepere"></select>
+                        </div>
+                        <div class="mapping-item">
+                            <label>Y Repère</label>
+                            <select class="form-select mapping-select" id="mapYRepere"></select>
+                        </div>
+                        <div class="mapping-item">
+                            <label>Pente</label>
+                            <select class="form-select mapping-select" id="mapPente"></select>
+                        </div>
+                        <div class="mapping-item">
+                            <label>Azimut</label>
+                            <select class="form-select mapping-select" id="mapAzimut"></select>
+                        </div>
+                        <div class="mapping-item">
+                            <label>Distance</label>
+                            <select class="form-select mapping-select" id="mapDistance"></select>
+                        </div>
+                        <div class="mapping-item">
+                            <label>Altitude</label>
+                            <select class="form-select mapping-select" id="mapAltitude"></select>
+                        </div>
+                        <div class="mapping-item">
+                            <label>Exposition</label>
+                            <select class="form-select mapping-select" id="mapExposition"></select>
+                        </div>
+                    </div>
+                    
+                    <div class="excel-preview">
+                        <h4>Aperçu des données (<span id="previewCount">0</span> lignes)</h4>
+                        <div class="preview-table-container">
+                            <table class="preview-table" id="previewTable">
+                                <thead></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary" id="applyExcelData">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Appliquer les données
+                    </button>
+                </div>
+                
+                <div class="divider"></div>
+                
+                <button class="btn btn-secondary" id="resetToDefault">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                        <path d="M3 3v5h5"/>
+                    </svg>
+                    Restaurer les données par défaut
+                </button>
+            </div>
+            
             <!-- Onglet Couches -->
             <div class="tab-content" id="tab-layers">
                 <div class="form-group">
@@ -1140,6 +1394,7 @@
     <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
     <script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
     <script src="https://unpkg.com/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
     <script>
         // ============================================
@@ -1168,6 +1423,13 @@
             showPlacettes: true,
             showReperes: true
         };
+        
+        // Données par défaut (sauvegarde)
+        const DEFAULT_PLACETTES_DATA = [...PLACETTES_DATA];
+        
+        // Variables pour l'import Excel
+        let excelData = null;
+        let excelColumns = [];
         
         // ============================================
         // ICÔNES PERSONNALISÉES
@@ -1797,6 +2059,251 @@
             }
         }
         
+        // ============================================
+        // IMPORT EXCEL
+        // ============================================
+        function handleExcelImport(file) {
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Prendre la première feuille
+                    const firstSheet = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheet];
+                    
+                    // Convertir en JSON
+                    excelData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    if (excelData.length === 0) {
+                        alert('Le fichier Excel est vide');
+                        return;
+                    }
+                    
+                    // Récupérer les colonnes
+                    excelColumns = Object.keys(excelData[0]);
+                    
+                    // Afficher le mapping
+                    showExcelMapping(file.name);
+                    
+                } catch (error) {
+                    alert('Erreur lors de la lecture du fichier Excel: ' + error.message);
+                    console.error(error);
+                }
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+        
+        function showExcelMapping(fileName) {
+            document.getElementById('excelMapping').style.display = 'block';
+            document.getElementById('previewCount').textContent = excelData.length;
+            
+            // Remplir les selects de mapping
+            const mappingFields = ['mapId', 'mapX', 'mapY', 'mapXRepere', 'mapYRepere', 'mapPente', 'mapAzimut', 'mapDistance', 'mapAltitude', 'mapExposition'];
+            const defaultMappings = {
+                mapId: ['id', 'code', 'ID', 'CODE', 'Id'],
+                mapX: ['x', 'X', 'longitude', 'lon', 'lng', 'LONGITUDE'],
+                mapY: ['y', 'Y', 'latitude', 'lat', 'LATITUDE'],
+                mapXRepere: ['xrepere', 'Xrepere', 'XREPERE', 'x_repere', 'X_REPERE'],
+                mapYRepere: ['yrepere', 'Yrepere', 'YREPERE', 'y_repere', 'Y_REPERE'],
+                mapPente: ['pente', 'Pente', 'PENTE', 'slope'],
+                mapAzimut: ['azimut', 'Azimut', 'AZIMUT', 'repere_azimut', 'azimuth'],
+                mapDistance: ['distance', 'Distance', 'DISTANCE', 'distance_point_repere'],
+                mapAltitude: ['altitude', 'Altitude', 'ALTITUDE', 'elevation', 'alt'],
+                mapExposition: ['exposition', 'Exposition', 'EXPOSITION', 'aspect']
+            };
+            
+            mappingFields.forEach(fieldId => {
+                const select = document.getElementById(fieldId);
+                select.innerHTML = '<option value="">-- Non mappé --</option>';
+                
+                excelColumns.forEach(col => {
+                    const option = document.createElement('option');
+                    option.value = col;
+                    option.textContent = col;
+                    
+                    // Auto-sélectionner si correspondance trouvée
+                    if (defaultMappings[fieldId].some(m => col.toLowerCase() === m.toLowerCase())) {
+                        option.selected = true;
+                    }
+                    
+                    select.appendChild(option);
+                });
+            });
+            
+            // Afficher l'aperçu
+            showExcelPreview();
+        }
+        
+        function showExcelPreview() {
+            const table = document.getElementById('previewTable');
+            const thead = table.querySelector('thead');
+            const tbody = table.querySelector('tbody');
+            
+            // En-têtes
+            thead.innerHTML = '<tr>' + excelColumns.map(col => `<th>${col}</th>`).join('') + '</tr>';
+            
+            // Lignes (max 5)
+            const previewRows = excelData.slice(0, 5);
+            tbody.innerHTML = previewRows.map(row => 
+                '<tr>' + excelColumns.map(col => `<td>${row[col] !== undefined ? row[col] : ''}</td>`).join('') + '</tr>'
+            ).join('');
+        }
+        
+        function applyExcelData() {
+            // Récupérer les mappings
+            const mapping = {
+                id: document.getElementById('mapId').value,
+                x: document.getElementById('mapX').value,
+                y: document.getElementById('mapY').value,
+                xrepere: document.getElementById('mapXRepere').value,
+                yrepere: document.getElementById('mapYRepere').value,
+                pente: document.getElementById('mapPente').value,
+                azimut: document.getElementById('mapAzimut').value,
+                distance: document.getElementById('mapDistance').value,
+                altitude: document.getElementById('mapAltitude').value,
+                exposition: document.getElementById('mapExposition').value
+            };
+            
+            // Vérifier les champs obligatoires
+            if (!mapping.id || !mapping.x || !mapping.y) {
+                alert('Les champs ID, X et Y sont obligatoires');
+                return;
+            }
+            
+            // Convertir les données
+            const newPlacettes = [];
+            let errors = 0;
+            
+            excelData.forEach((row, index) => {
+                try {
+                    const x = parseFloat(row[mapping.x]);
+                    const y = parseFloat(row[mapping.y]);
+                    
+                    if (isNaN(x) || isNaN(y)) {
+                        errors++;
+                        return;
+                    }
+                    
+                    const placette = {
+                        id: String(row[mapping.id]),
+                        x: x,
+                        y: y,
+                        xrepere: mapping.xrepere ? parseFloat(row[mapping.xrepere]) || x : x,
+                        yrepere: mapping.yrepere ? parseFloat(row[mapping.yrepere]) || y : y,
+                        pente: mapping.pente ? parseInt(row[mapping.pente]) || null : null,
+                        azimut: mapping.azimut ? parseFloat(row[mapping.azimut]) || null : null,
+                        distance: mapping.distance ? parseFloat(row[mapping.distance]) || null : null,
+                        altitude: mapping.altitude ? parseInt(row[mapping.altitude]) || null : null,
+                        exposition: mapping.exposition ? parseInt(row[mapping.exposition]) || null : null,
+                        description_repere: row['description_repere'] || row['Description'] || '',
+                        strate: row['strate_cartographique'] || row['strate'] || ''
+                    };
+                    
+                    newPlacettes.push(placette);
+                } catch (e) {
+                    errors++;
+                }
+            });
+            
+            if (newPlacettes.length === 0) {
+                alert('Aucune donnée valide trouvée');
+                return;
+            }
+            
+            // Remplacer les données
+            PLACETTES_DATA.length = 0;
+            PLACETTES_DATA.push(...newPlacettes);
+            
+            // Recréer les couches
+            recreatePlacettesLayers();
+            
+            // Mettre à jour les listes et stats
+            populateSelects();
+            updateStats();
+            updateDataInfo('Fichier importé');
+            
+            // Masquer le mapping
+            document.getElementById('excelMapping').style.display = 'none';
+            excelData = null;
+            
+            // Message de succès
+            const message = errors > 0 
+                ? `${newPlacettes.length} placettes importées (${errors} lignes ignorées)`
+                : `${newPlacettes.length} placettes importées avec succès`;
+            alert(message);
+            
+            // Zoomer sur les nouvelles données
+            zoomToAllPlacettes();
+        }
+        
+        function recreatePlacettesLayers() {
+            // Supprimer les anciennes couches
+            if (state.placettesLayer) {
+                state.map.removeLayer(state.placettesLayer);
+            }
+            if (state.reperesLayer) {
+                state.map.removeLayer(state.reperesLayer);
+            }
+            
+            // Recréer les couches
+            state.placettesLayer = L.layerGroup();
+            state.reperesLayer = L.layerGroup();
+            
+            PLACETTES_DATA.forEach(p => {
+                // Marqueur placette
+                const placetteMarker = L.marker([p.y, p.x], { icon: icons.placette });
+                placetteMarker.bindPopup(createPlacettePopup(p));
+                placetteMarker.placetteData = p;
+                state.placettesLayer.addLayer(placetteMarker);
+                
+                // Marqueur repère (seulement si différent de la placette)
+                if (p.xrepere !== p.x || p.yrepere !== p.y) {
+                    const repereMarker = L.marker([p.yrepere, p.xrepere], { icon: icons.repere });
+                    repereMarker.bindPopup(createReperePopup(p));
+                    repereMarker.placetteData = p;
+                    state.reperesLayer.addLayer(repereMarker);
+                }
+            });
+            
+            // Ajouter à la carte si visibles
+            if (state.showPlacettes) {
+                state.placettesLayer.addTo(state.map);
+            }
+            if (state.showReperes) {
+                state.reperesLayer.addTo(state.map);
+            }
+        }
+        
+        function resetToDefaultData() {
+            if (!confirm('Restaurer les données par défaut ? Les données importées seront perdues.')) {
+                return;
+            }
+            
+            PLACETTES_DATA.length = 0;
+            PLACETTES_DATA.push(...DEFAULT_PLACETTES_DATA);
+            
+            recreatePlacettesLayers();
+            populateSelects();
+            updateStats();
+            updateDataInfo('PROGRAMME_2026_Maille_2x2km_RSK');
+            
+            document.getElementById('excelMapping').style.display = 'none';
+            
+            alert('Données par défaut restaurées');
+            zoomToAllPlacettes();
+        }
+        
+        function updateDataInfo(fileName) {
+            document.getElementById('currentDataInfo').textContent = 'Fichier : ' + fileName;
+            document.getElementById('dataPlacettesCount').textContent = PLACETTES_DATA.length;
+            const distinctReperes = PLACETTES_DATA.filter(p => p.xrepere !== p.x || p.yrepere !== p.y).length;
+            document.getElementById('dataReperesCount').textContent = distinctReperes;
+        }
+        
         function addGeoJSONLayer(geojson, name) {
             const layer = L.geoJSON(geojson, {
                 style: {
@@ -2008,6 +2515,40 @@
                     handleFileImport(e.target.files[0]);
                 }
             });
+            
+            // Import Excel
+            const excelDropZone = document.getElementById('excelDropZone');
+            const excelFileInput = document.getElementById('excelFileInput');
+            
+            excelDropZone.addEventListener('click', () => excelFileInput.click());
+            excelDropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                excelDropZone.classList.add('dragover');
+            });
+            excelDropZone.addEventListener('dragleave', () => {
+                excelDropZone.classList.remove('dragover');
+            });
+            excelDropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                excelDropZone.classList.remove('dragover');
+                if (e.dataTransfer.files.length) {
+                    handleExcelImport(e.dataTransfer.files[0]);
+                }
+            });
+            excelFileInput.addEventListener('change', (e) => {
+                if (e.target.files.length) {
+                    handleExcelImport(e.target.files[0]);
+                }
+            });
+            
+            // Appliquer les données Excel
+            document.getElementById('applyExcelData').addEventListener('click', applyExcelData);
+            
+            // Restaurer les données par défaut
+            document.getElementById('resetToDefault').addEventListener('click', resetToDefaultData);
+            
+            // Initialiser les infos de données
+            updateDataInfo('PROGRAMME_2026_Maille_2x2km_RSK');
         });
         
         function togglePanelMobile() {
