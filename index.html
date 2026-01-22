@@ -735,6 +735,59 @@
             background: var(--accent);
         }
         
+        /* Autocomplete custom */
+        .autocomplete-wrapper {
+            position: relative;
+        }
+        
+        .autocomplete-list {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            max-height: 200px;
+            overflow-y: auto;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 4px;
+            z-index: 100;
+            display: none;
+            backdrop-filter: blur(20px);
+        }
+        
+        .autocomplete-list.visible {
+            display: block;
+        }
+        
+        .autocomplete-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.85rem;
+            border-bottom: 1px solid var(--border);
+            transition: all 0.15s ease;
+        }
+        
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background: rgba(0, 212, 170, 0.2);
+            color: var(--accent);
+        }
+        
+        .autocomplete-list::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        .autocomplete-list::-webkit-scrollbar-thumb {
+            background: var(--accent);
+            border-radius: 2px;
+        }
+        
         /* Mode transport */
         .transport-modes {
             display: flex;
@@ -875,9 +928,10 @@
                 
                 <div class="form-group" id="departPlacetteGroup" style="display: none;">
                     <label class="form-label">Placette de départ</label>
-                    <select class="form-select" id="departPlacetteSelect">
-                        <option value="">-- Sélectionner --</option>
-                    </select>
+                    <div class="autocomplete-wrapper">
+                        <div class="autocomplete-list" id="departAutocompleteList"></div>
+                        <input type="text" class="form-input" id="departPlacetteSelect" placeholder="Tapez un code..." autocomplete="off">
+                    </div>
                 </div>
                 
                 <div class="divider"></div>
@@ -906,9 +960,10 @@
                 
                 <div class="form-group" id="arriveePlacetteGroup">
                     <label class="form-label">Placette d'arrivée</label>
-                    <select class="form-select" id="arriveePlacetteSelect">
-                        <option value="">-- Sélectionner --</option>
-                    </select>
+                    <div class="autocomplete-wrapper">
+                        <div class="autocomplete-list" id="arriveeAutocompleteList"></div>
+                        <input type="text" class="form-input" id="arriveePlacetteSelect" placeholder="Tapez un code..." autocomplete="off">
+                    </div>
                 </div>
                 
                 <div class="divider"></div>
@@ -1004,9 +1059,10 @@
                 
                 <div class="form-group">
                     <label class="form-label">Zoomer sur une placette</label>
-                    <select class="form-select" id="zoomPlacetteSelect">
-                        <option value="">-- Sélectionner --</option>
-                    </select>
+                    <div class="autocomplete-wrapper">
+                        <div class="autocomplete-list" id="zoomAutocompleteList"></div>
+                        <input type="text" class="form-input" id="zoomPlacetteSelect" placeholder="Tapez un code..." autocomplete="off">
+                    </div>
                 </div>
                 
                 <button class="btn btn-secondary" id="zoomToAll">
@@ -1022,7 +1078,8 @@
                 <div class="form-group">
                     <label class="form-label">Fond de carte</label>
                     <select class="form-select" id="basemapSelect">
-                        <option value="satellite">Google Satellite Hybrid</option>
+                        <option value="hybrid">Google Satellite Hybrid</option>
+                        <option value="satellite">Google Satellite (sans labels)</option>
                         <option value="dark">CartoDB Dark</option>
                         <option value="osm">OpenStreetMap</option>
                         <option value="topo">OpenTopoMap</option>
@@ -1186,7 +1243,11 @@
             
             // Fonds de carte
             state.baseLayers = {
-                satellite: L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                hybrid: L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                    attribution: '© Google',
+                    maxZoom: 20
+                }),
+                satellite: L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
                     attribution: '© Google',
                     maxZoom: 20
                 }),
@@ -1201,7 +1262,7 @@
                 })
             };
             
-            state.baseLayers.satellite.addTo(state.map);
+            state.baseLayers.hybrid.addTo(state.map);
             
             // Créer les couches de placettes et repères
             createPlacettesLayers();
@@ -1350,13 +1411,68 @@
         }
         
         function populateSelects() {
-            const options = PLACETTES_DATA.map(p => 
-                `<option value="${p.id}">${p.id}</option>`
+            // Initialisation - les listes sont vides au départ
+        }
+        
+        function showAutocomplete(inputId, listId, query) {
+            const list = document.getElementById(listId);
+            
+            let filtered;
+            if (!query) {
+                // Afficher toutes les placettes (limité à 20 pour la performance)
+                filtered = PLACETTES_DATA.slice(0, 20);
+            } else {
+                // Filtrer par les codes qui commencent par la saisie
+                filtered = PLACETTES_DATA.filter(p => 
+                    p.id.toString().startsWith(query)
+                ).slice(0, 20);
+            }
+            
+            if (filtered.length === 0) {
+                list.innerHTML = '<div class="autocomplete-item" style="color: var(--text-muted); cursor: default;">Aucun résultat</div>';
+                list.classList.add('visible');
+                return;
+            }
+            
+            list.innerHTML = filtered.map(p => 
+                `<div class="autocomplete-item" data-value="${p.id}">${p.id}</div>`
             ).join('');
             
-            document.getElementById('departPlacetteSelect').innerHTML = '<option value="">-- Sélectionner --</option>' + options;
-            document.getElementById('arriveePlacetteSelect').innerHTML = '<option value="">-- Sélectionner --</option>' + options;
-            document.getElementById('zoomPlacetteSelect').innerHTML = '<option value="">-- Sélectionner --</option>' + options;
+            list.classList.add('visible');
+            
+            // Ajouter les événements de clic
+            list.querySelectorAll('.autocomplete-item[data-value]').forEach(item => {
+                item.addEventListener('click', () => {
+                    document.getElementById(inputId).value = item.dataset.value;
+                    list.classList.remove('visible');
+                    validatePlacetteInput(inputId);
+                    
+                    // Déclencher l'action si c'est le zoom
+                    if (inputId === 'zoomPlacetteSelect') {
+                        zoomToPlacette(item.dataset.value);
+                    }
+                });
+            });
+        }
+        
+        function hideAutocomplete(listId) {
+            setTimeout(() => {
+                document.getElementById(listId).classList.remove('visible');
+            }, 200);
+        }
+        
+        function validatePlacetteInput(inputId) {
+            const value = document.getElementById(inputId).value;
+            const exists = PLACETTES_DATA.some(p => p.id === value);
+            const input = document.getElementById(inputId);
+            
+            if (value && !exists) {
+                input.style.borderColor = 'var(--danger)';
+                return false;
+            } else {
+                input.style.borderColor = value ? 'var(--accent)' : 'var(--border)';
+                return true;
+            }
         }
         
         function updateStats() {
@@ -1559,6 +1675,7 @@
             document.getElementById('arriveePlacetteSelect').value = id;
             document.querySelector('input[name="arrivee"][value="placette"]').checked = true;
             updateArriveeType('placette');
+            validatePlacetteInput('arriveePlacetteSelect');
             state.map.closePopup();
             document.querySelector('[data-tab="navigation"]').click();
         }
@@ -1567,6 +1684,7 @@
             document.getElementById('arriveePlacetteSelect').value = id;
             document.querySelector('input[name="arrivee"][value="repere"]').checked = true;
             updateArriveeType('repere');
+            validatePlacetteInput('arriveePlacetteSelect');
             state.map.closePopup();
             document.querySelector('[data-tab="navigation"]').click();
         }
@@ -1579,6 +1697,7 @@
             document.getElementById('arriveePlacetteSelect').value = id;
             document.querySelector('input[name="arrivee"][value="placette"]').checked = true;
             updateArriveeType('placette');
+            validatePlacetteInput('arriveePlacetteSelect');
             state.map.closePopup();
             calculateRoute();
         }
@@ -1805,23 +1924,64 @@
                 changeBasemap(e.target.value);
             });
             
-            // Zoom placette
-            document.getElementById('zoomPlacetteSelect').addEventListener('change', (e) => {
-                if (e.target.value) zoomToPlacette(e.target.value);
+            // Zoom placette - avec autocomplétion
+            document.getElementById('zoomPlacetteSelect').addEventListener('focus', (e) => {
+                showAutocomplete('zoomPlacetteSelect', 'zoomAutocompleteList', e.target.value);
+            });
+            
+            document.getElementById('zoomPlacetteSelect').addEventListener('input', (e) => {
+                showAutocomplete('zoomPlacetteSelect', 'zoomAutocompleteList', e.target.value);
+            });
+            
+            document.getElementById('zoomPlacetteSelect').addEventListener('blur', () => {
+                hideAutocomplete('zoomAutocompleteList');
+                validatePlacetteInput('zoomPlacetteSelect');
+            });
+            
+            document.getElementById('zoomPlacetteSelect').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    hideAutocomplete('zoomAutocompleteList');
+                    if (validatePlacetteInput('zoomPlacetteSelect') && e.target.value) {
+                        zoomToPlacette(e.target.value);
+                    }
+                }
+            });
+            
+            // Autocomplétion pour départ
+            document.getElementById('departPlacetteSelect').addEventListener('focus', (e) => {
+                showAutocomplete('departPlacetteSelect', 'departAutocompleteList', e.target.value);
+            });
+            
+            document.getElementById('departPlacetteSelect').addEventListener('input', (e) => {
+                showAutocomplete('departPlacetteSelect', 'departAutocompleteList', e.target.value);
+            });
+            
+            document.getElementById('departPlacetteSelect').addEventListener('blur', () => {
+                hideAutocomplete('departAutocompleteList');
+                validatePlacetteInput('departPlacetteSelect');
+            });
+            
+            // Autocomplétion pour arrivée
+            document.getElementById('arriveePlacetteSelect').addEventListener('focus', (e) => {
+                showAutocomplete('arriveePlacetteSelect', 'arriveeAutocompleteList', e.target.value);
+            });
+            
+            document.getElementById('arriveePlacetteSelect').addEventListener('input', (e) => {
+                showAutocomplete('arriveePlacetteSelect', 'arriveeAutocompleteList', e.target.value);
+            });
+            
+            document.getElementById('arriveePlacetteSelect').addEventListener('blur', () => {
+                hideAutocomplete('arriveeAutocompleteList');
+                validatePlacetteInput('arriveePlacetteSelect');
             });
             
             document.getElementById('zoomToAll').addEventListener('click', zoomToAllPlacettes);
             
-            // Recherche
+            // Recherche placette - synchroniser avec le champ zoom
             document.getElementById('searchPlacette').addEventListener('input', (e) => {
-                const query = e.target.value.toLowerCase();
-                const filtered = PLACETTES_DATA.filter(p => p.id.toLowerCase().includes(query));
-                
-                const options = filtered.slice(0, 50).map(p => 
-                    `<option value="${p.id}">${p.id}</option>`
-                ).join('');
-                
-                document.getElementById('zoomPlacetteSelect').innerHTML = '<option value="">-- Sélectionner --</option>' + options;
+                const query = e.target.value;
+                document.getElementById('zoomPlacetteSelect').value = query;
+                showAutocomplete('zoomPlacetteSelect', 'zoomAutocompleteList', query);
             });
             
             // Import fichier
