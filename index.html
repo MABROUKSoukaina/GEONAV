@@ -559,6 +559,118 @@
             border-color: var(--accent);
         }
         
+        /* Légende flottante */
+        .map-legend {
+            position: fixed;
+            bottom: 100px;
+            right: 80px;
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            z-index: 999;
+            min-width: 180px;
+            max-width: 250px;
+            display: none;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .map-legend.visible {
+            display: block;
+        }
+        
+        /* Responsive pour la légende */
+        @media (max-width: 768px) {
+            .map-legend {
+                bottom: auto;
+                top: 80px;
+                right: 60px;
+                max-width: 200px;
+            }
+        }
+        
+        .map-legend-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .legend-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+        
+        .legend-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text);
+        }
+        
+        .map-legend-content {
+            padding: 12px 14px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .legend-section {
+            margin-bottom: 12px;
+        }
+        
+        .legend-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .legend-section-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 0;
+            font-size: 0.8rem;
+        }
+        
+        .legend-marker {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        .legend-marker.placette {
+            background: var(--placette);
+        }
+        
+        .legend-marker.repere {
+            background: var(--repere);
+        }
+        
+        .legend-marker.position {
+            background: #4285f4;
+        }
+        
+        .legend-marker.custom {
+            border-radius: 4px;
+        }
+        
         /* GPS Loading */
         .gps-loading {
             animation: pulse 1.5s infinite;
@@ -567,6 +679,22 @@
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translate(-50%, 20px);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, 0);
+            }
+        }
+        
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
         }
         
         /* Popups personnalisés */
@@ -674,6 +802,17 @@
             color: var(--bg-dark);
         }
         
+        .popup-btn.select-btn {
+            background: rgba(255, 0, 255, 0.2);
+            border-color: #ff00ff;
+            color: #ff00ff;
+        }
+        
+        .popup-btn.select-btn:hover {
+            background: #ff00ff;
+            color: white;
+        }
+        
         /* Clusters */
         .marker-cluster {
             background: rgba(0, 212, 170, 0.3);
@@ -767,6 +906,173 @@
         
         .toggle-switch.active::after {
             left: 22px;
+        }
+        
+        /* Section Sélection de placettes */
+        .selection-section {
+            margin-bottom: 16px;
+        }
+        
+        .selection-hint {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+        
+        .selection-input-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .btn-icon {
+            width: 42px;
+            height: 42px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .selected-placettes-list {
+            max-height: 150px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .selected-placettes-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .selected-placettes-list::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        }
+        
+        .selected-placettes-list::-webkit-scrollbar-thumb {
+            background: var(--accent);
+            border-radius: 3px;
+        }
+        
+        .no-selection {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            text-align: center;
+            padding: 10px;
+            margin: 0;
+        }
+        
+        .selected-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 10px;
+            background: rgba(255, 0, 255, 0.15);
+            border: 1px solid rgba(255, 0, 255, 0.5);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 0.8rem;
+        }
+        
+        .selected-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .selected-item-code {
+            font-family: 'Space Mono', monospace;
+            color: #ff00ff;
+            font-weight: 600;
+        }
+        
+        .selected-item-remove {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+        
+        .selected-item-remove:hover {
+            color: var(--danger);
+            background: rgba(255, 107, 107, 0.1);
+        }
+        
+        .selection-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .selection-actions .btn {
+            flex: 1;
+            font-size: 0.8rem;
+            padding: 10px 12px;
+        }
+        
+        /* Marqueur sélectionné */
+        .placette-selected {
+            filter: drop-shadow(0 0 8px #ff00ff) drop-shadow(0 0 15px #ff00ff) brightness(1.3);
+            z-index: 1000 !important;
+        }
+        
+        .placette-selected > div {
+            animation: selectedPulse 1s infinite;
+        }
+        
+        @keyframes selectedPulse {
+            0%, 100% { 
+                box-shadow: 0 0 0 4px rgba(255, 0, 255, 0.6), 0 0 15px rgba(255, 0, 255, 0.8);
+            }
+            50% { 
+                box-shadow: 0 0 0 8px rgba(255, 0, 255, 0.3), 0 0 25px rgba(255, 0, 255, 0.5);
+            }
+        }
+        
+        /* Mode navigation - atténuer les placettes */
+        .navigation-mode {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+        
+        .navigation-mode .route-marker-start,
+        .navigation-mode .route-marker-end {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+        
+        /* Ligne d'itinéraire au-dessus */
+        .leaflet-overlay-pane {
+            z-index: 450;
+        }
+        
+        /* Marqueurs de route au-dessus de tout */
+        .route-marker-start,
+        .route-marker-end {
+            z-index: 2000 !important;
+        }
+        
+        /* Tooltip pour couches admin */
+        .admin-tooltip {
+            background: var(--bg-card) !important;
+            border: 1px solid var(--border) !important;
+            color: var(--text) !important;
+            font-size: 0.8rem !important;
+            padding: 6px 10px !important;
+            border-radius: 6px !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3) !important;
+        }
+        
+        .admin-tooltip::before {
+            display: none !important;
         }
         
         /* Responsive */
@@ -1109,35 +1415,6 @@
         <div class="panel-content">
             <!-- Onglet Navigation -->
             <div class="tab-content active" id="tab-navigation">
-                <div class="legend">
-                    <div class="legend-title">Légende</div>
-                    <div class="legend-items">
-                        <div class="legend-item">
-                            <div class="legend-marker placette">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
-                                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-                                </svg>
-                            </div>
-                            <span>Placette forestière</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-marker repere">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
-                                    <path d="M12 2v20M2 12h20"/>
-                                </svg>
-                            </div>
-                            <span>Point de repère</span>
-                        </div>
-                        <div class="legend-item">
-                            <div class="legend-marker position">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
-                                    <circle cx="12" cy="12" r="8"/>
-                                </svg>
-                            </div>
-                            <span>Ma position</span>
-                        </div>
-                    </div>
-                </div>
                 
                 <div class="form-group">
                     <label class="form-label">Point de départ</label>
@@ -1336,6 +1613,10 @@
                         <div class="value" id="totalReperes">0</div>
                         <div class="label">Repères</div>
                     </div>
+                    <div class="stat-box">
+                        <div class="value" id="selectedCount">0</div>
+                        <div class="label">Sélectionnées</div>
+                    </div>
                 </div>
                 
                 <div class="toggle-group">
@@ -1348,6 +1629,56 @@
                         <div class="toggle-switch active" id="toggleReperes" onclick="toggleLayer('reperes')"></div>
                     </div>
                 </div>
+                
+                <div class="divider"></div>
+                
+                <!-- Section Sélection -->
+                <div class="selection-section">
+                    <label class="form-label">Sélection de placettes</label>
+                    <p class="selection-hint">Cliquez sur une placette ou utilisez la recherche ci-dessous. Maintenez Ctrl pour sélection multiple.</p>
+                    
+                    <div class="selection-input-group">
+                        <div class="autocomplete-wrapper" style="flex: 1;">
+                            <div class="autocomplete-list" id="selectionAutocompleteList"></div>
+                            <input type="text" class="form-input" id="selectionInput" placeholder="Ajouter par code..." autocomplete="off">
+                        </div>
+                        <button class="btn btn-icon" id="addSelectionBtn" title="Ajouter à la sélection">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 5v14M5 12h14"/>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <div class="selected-placettes-list" id="selectedPlacettesList">
+                        <p class="no-selection">Aucune placette sélectionnée</p>
+                    </div>
+                    
+                    <div class="selection-actions">
+                        <button class="btn btn-secondary" id="clearSelectionBtn" disabled>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 6L6 18M6 6l12 12"/>
+                            </svg>
+                            Effacer sélection
+                        </button>
+                        <button class="btn btn-primary" id="keepSelectedBtn" disabled>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                <polyline points="22 4 12 14.01 9 11.01"/>
+                            </svg>
+                            Garder sélectionnées
+                        </button>
+                    </div>
+                    
+                    <button class="btn btn-secondary" id="restoreAllBtn" style="display: none; margin-top: 10px; width: 100%;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                            <path d="M3 3v5h5"/>
+                        </svg>
+                        Restaurer toutes les placettes
+                    </button>
+                </div>
+                
+                <div class="divider"></div>
                 
                 <div class="search-box">
                     <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1590,6 +1921,48 @@
                 <path d="M21 21l-4.35-4.35M8 11h6"/>
             </svg>
         </button>
+        <button class="map-btn" id="legendBtn" title="Légende">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="3" width="7" height="4" rx="1"/>
+                <rect x="14" y="10" width="7" height="4" rx="1"/>
+                <rect x="14" y="17" width="7" height="4" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+            </svg>
+        </button>
+    </div>
+    
+    <!-- Légende flottante -->
+    <div class="map-legend" id="mapLegend">
+        <div class="map-legend-header">
+            <span>Légende</span>
+            <button class="legend-close" id="legendClose">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="map-legend-content">
+            <div class="legend-section">
+                <div class="legend-section-title">Données</div>
+                <div class="legend-item">
+                    <div class="legend-marker placette"></div>
+                    <span>Placette forestière</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-marker repere"></div>
+                    <span>Point de repère</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-marker position"></div>
+                    <span>Ma position</span>
+                </div>
+            </div>
+            <div class="legend-section" id="legendCustomLayers" style="display: none;">
+                <div class="legend-section-title">Couches</div>
+                <div id="legendCustomLayersList"></div>
+            </div>
+        </div>
     </div>
     
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -1633,7 +2006,10 @@
             // Vol d'oiseau
             birdLine: null,
             birdMarkerStart: null,
-            birdMarkerEnd: null
+            birdMarkerEnd: null,
+            // Sélection de placettes
+            selectedPlacettes: new Set(),
+            isFilteredMode: false
         };
         
         // Données par défaut (sauvegarde)
@@ -1791,6 +2167,16 @@
                 const placetteMarker = L.marker([p.y, p.x], { icon: icons.placette });
                 placetteMarker.bindPopup(createPlacettePopup(p));
                 placetteMarker.placetteData = p;
+                
+                // Ajouter l'événement de clic pour la sélection
+                placetteMarker.on('click', (e) => {
+                    // Si Ctrl est maintenu, ajouter à la sélection
+                    if (e.originalEvent.ctrlKey || e.originalEvent.metaKey) {
+                        e.originalEvent.stopPropagation();
+                        togglePlacetteSelection(p.id, true);
+                    }
+                });
+                
                 state.placettesLayer.addLayer(placetteMarker);
                 
                 // Marqueur repère (seulement si différent de la placette)
@@ -1852,6 +2238,9 @@
                         </button>
                         <button class="popup-btn" onclick="navigateToRepere('${p.id}')">
                             Aller au repère
+                        </button>
+                        <button class="popup-btn select-btn" onclick="addToSelection('${p.id}')">
+                            Sélectionner
                         </button>
                     </div>
                 </div>
@@ -1985,6 +2374,235 @@
             // Compter les repères distincts (différents de la placette)
             const distinctReperes = PLACETTES_DATA.filter(p => p.xrepere !== p.x || p.yrepere !== p.y).length;
             document.getElementById('totalReperes').textContent = distinctReperes;
+            // Mettre à jour le compteur de sélection
+            document.getElementById('selectedCount').textContent = state.selectedPlacettes.size;
+        }
+        
+        // ============================================
+        // SÉLECTION DE PLACETTES
+        // ============================================
+        function togglePlacetteSelection(placetteId, ctrlKey = false) {
+            if (!ctrlKey) {
+                // Sans Ctrl, on remplace la sélection
+                state.selectedPlacettes.clear();
+            }
+            
+            if (state.selectedPlacettes.has(placetteId)) {
+                state.selectedPlacettes.delete(placetteId);
+            } else {
+                state.selectedPlacettes.add(placetteId);
+            }
+            
+            updateSelectionUI();
+            updatePlacetteMarkers();
+        }
+        
+        function addToSelection(placetteId) {
+            if (!state.selectedPlacettes.has(placetteId)) {
+                state.selectedPlacettes.add(placetteId);
+                updateSelectionUI();
+                updatePlacetteMarkers();
+            }
+        }
+        
+        function removeFromSelection(placetteId) {
+            state.selectedPlacettes.delete(placetteId);
+            updateSelectionUI();
+            updatePlacetteMarkers();
+        }
+        
+        function clearSelection() {
+            state.selectedPlacettes.clear();
+            updateSelectionUI();
+            updatePlacetteMarkers();
+        }
+        
+        function updateSelectionUI() {
+            const count = state.selectedPlacettes.size;
+            document.getElementById('selectedCount').textContent = count;
+            
+            const listEl = document.getElementById('selectedPlacettesList');
+            const clearBtn = document.getElementById('clearSelectionBtn');
+            const keepBtn = document.getElementById('keepSelectedBtn');
+            
+            clearBtn.disabled = count === 0;
+            keepBtn.disabled = count === 0;
+            
+            if (count === 0) {
+                listEl.innerHTML = '<p class="no-selection">Aucune placette sélectionnée</p>';
+            } else {
+                const items = Array.from(state.selectedPlacettes).map(id => `
+                    <div class="selected-item">
+                        <span class="selected-item-code">${id}</span>
+                        <button class="selected-item-remove" onclick="removeFromSelection('${id}')" title="Retirer">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 6L6 18M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                `).join('');
+                listEl.innerHTML = items;
+            }
+        }
+        
+        function updatePlacetteMarkers() {
+            if (!state.placettesLayer) return;
+            
+            state.placettesLayer.eachLayer(marker => {
+                if (marker.placetteData) {
+                    const isSelected = state.selectedPlacettes.has(marker.placetteData.id);
+                    const el = marker.getElement();
+                    if (el) {
+                        if (isSelected) {
+                            el.classList.add('placette-selected');
+                        } else {
+                            el.classList.remove('placette-selected');
+                        }
+                    }
+                }
+            });
+        }
+        
+        function keepOnlySelected() {
+            if (state.selectedPlacettes.size === 0) return;
+            
+            // Sauvegarder les IDs sélectionnés
+            const selectedIds = new Set(state.selectedPlacettes);
+            
+            // Filtrer les données
+            const filteredData = PLACETTES_DATA.filter(p => selectedIds.has(p.id));
+            
+            // Remplacer PLACETTES_DATA temporairement
+            PLACETTES_DATA.length = 0;
+            PLACETTES_DATA.push(...filteredData);
+            
+            // Recréer les couches
+            recreatePlacettesLayers();
+            
+            // Vider la sélection
+            state.selectedPlacettes.clear();
+            
+            // Mettre à jour l'UI
+            updateStats();
+            updateSelectionUI();
+            populateSelects();
+            
+            // Zoomer sur les placettes restantes
+            zoomToAllPlacettes();
+            
+            // Afficher le bouton restaurer
+            document.getElementById('restoreAllBtn').style.display = 'block';
+            state.isFilteredMode = true;
+            
+            // Notification
+            showNotification(`${filteredData.length} placettes conservées`);
+        }
+        
+        function restoreAllPlacettes() {
+            // Restaurer les données originales
+            PLACETTES_DATA.length = 0;
+            PLACETTES_DATA.push(...DEFAULT_PLACETTES_DATA);
+            
+            // Recréer les couches
+            recreatePlacettesLayers();
+            
+            // Mettre à jour l'UI
+            updateStats();
+            updateSelectionUI();
+            populateSelects();
+            
+            // Zoomer sur toutes les placettes
+            zoomToAllPlacettes();
+            
+            // Cacher le bouton restaurer
+            document.getElementById('restoreAllBtn').style.display = 'none';
+            state.isFilteredMode = false;
+            
+            // Notification
+            showNotification(`${PLACETTES_DATA.length} placettes restaurées`);
+        }
+        
+        function showNotification(message) {
+            // Créer une notification temporaire
+            const notif = document.createElement('div');
+            notif.style.cssText = `
+                position: fixed;
+                bottom: 100px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: var(--bg-card);
+                border: 1px solid var(--accent);
+                color: var(--text);
+                padding: 12px 24px;
+                border-radius: 8px;
+                z-index: 2000;
+                font-size: 0.9rem;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                animation: fadeInUp 0.3s ease;
+            `;
+            notif.textContent = message;
+            document.body.appendChild(notif);
+            
+            setTimeout(() => {
+                notif.style.animation = 'fadeOut 0.3s ease';
+                setTimeout(() => notif.remove(), 300);
+            }, 2000);
+        }
+        
+        function setupSelectionAutocomplete() {
+            const input = document.getElementById('selectionInput');
+            const list = document.getElementById('selectionAutocompleteList');
+            
+            input.addEventListener('input', () => {
+                const query = input.value.toLowerCase();
+                if (query.length < 1) {
+                    list.classList.remove('visible');
+                    return;
+                }
+                
+                const filtered = PLACETTES_DATA.filter(p => 
+                    p.id.toLowerCase().includes(query) && !state.selectedPlacettes.has(p.id)
+                ).slice(0, 10);
+                
+                if (filtered.length === 0) {
+                    list.innerHTML = '<div class="autocomplete-item" style="color: var(--text-muted);">Aucun résultat</div>';
+                } else {
+                    list.innerHTML = filtered.map(p => 
+                        `<div class="autocomplete-item" data-id="${p.id}">${p.id}</div>`
+                    ).join('');
+                    
+                    list.querySelectorAll('.autocomplete-item[data-id]').forEach(item => {
+                        item.addEventListener('click', () => {
+                            addToSelection(item.dataset.id);
+                            input.value = '';
+                            list.classList.remove('visible');
+                        });
+                    });
+                }
+                
+                list.classList.add('visible');
+            });
+            
+            input.addEventListener('focus', () => {
+                if (input.value.length >= 1) {
+                    input.dispatchEvent(new Event('input'));
+                }
+            });
+            
+            input.addEventListener('blur', () => {
+                setTimeout(() => list.classList.remove('visible'), 200);
+            });
+            
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    const firstItem = list.querySelector('.autocomplete-item[data-id]');
+                    if (firstItem) {
+                        addToSelection(firstItem.dataset.id);
+                        input.value = '';
+                        list.classList.remove('visible');
+                    }
+                }
+            });
         }
         
         // ============================================
@@ -2208,6 +2826,9 @@
                 state.map.removeLayer(state.birdMarkerEnd);
             }
             
+            // Réduire l'opacité des placettes pendant la navigation
+            dimPlacettesForNavigation(true);
+            
             // Calculer la distance à vol d'oiseau (formule Haversine)
             const R = 6371e3; // Rayon de la Terre en mètres
             const lat1 = start.lat * Math.PI / 180;
@@ -2331,6 +2952,9 @@
                 state.birdMarkerEnd = null;
             }
             
+            // Réduire l'opacité des placettes pendant la navigation
+            dimPlacettesForNavigation(true);
+            
             const profiles = {
                 car: 'car',
                 foot: 'foot',
@@ -2347,33 +2971,40 @@
                     styles: [
                         { color: '#00d4aa', weight: 6, opacity: 0.8 },
                         { color: '#00ffcc', weight: 4, opacity: 1 }
-                    ]
+                    ],
+                    addWaypoints: false
                 },
                 createMarker: function(i, wp) {
                     const markerIcon = i === 0 ? L.divIcon({
-                        className: 'route-marker',
+                        className: 'route-marker route-marker-start',
                         html: `<div style="
-                            width: 24px; height: 24px;
+                            width: 28px; height: 28px;
                             background: #4285f4;
                             border: 3px solid white;
                             border-radius: 50%;
-                            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                        "></div>`,
-                        iconSize: [24, 24],
-                        iconAnchor: [12, 12]
+                            box-shadow: 0 2px 10px rgba(66, 133, 244, 0.5);
+                            display: flex; align-items: center; justify-content: center;
+                        ">
+                            <span style="color: white; font-size: 12px; font-weight: bold;">D</span>
+                        </div>`,
+                        iconSize: [28, 28],
+                        iconAnchor: [14, 14]
                     }) : L.divIcon({
-                        className: 'route-marker',
+                        className: 'route-marker route-marker-end',
                         html: `<div style="
-                            width: 24px; height: 24px;
+                            width: 28px; height: 28px;
                             background: #ff6b6b;
                             border: 3px solid white;
                             border-radius: 50%;
-                            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                        "></div>`,
-                        iconSize: [24, 24],
-                        iconAnchor: [12, 12]
+                            box-shadow: 0 2px 10px rgba(255, 107, 107, 0.5);
+                            display: flex; align-items: center; justify-content: center;
+                        ">
+                            <span style="color: white; font-size: 12px; font-weight: bold;">A</span>
+                        </div>`,
+                        iconSize: [28, 28],
+                        iconAnchor: [14, 14]
                     });
-                    return L.marker(wp.latLng, { icon: markerIcon, draggable: true });
+                    return L.marker(wp.latLng, { icon: markerIcon, draggable: true, zIndexOffset: 2000 });
                 },
                 show: false,
                 addWaypoints: false,
@@ -2431,8 +3062,29 @@
                 document.getElementById('arriveeCarteStatus').textContent = 'Cliquez sur la carte';
             }
             
+            // Restaurer l'opacité des placettes
+            dimPlacettesForNavigation(false);
+            
             document.getElementById('routeResult').classList.remove('visible');
             document.getElementById('clearRoute').style.display = 'none';
+        }
+        
+        // Fonction pour atténuer/restaurer les placettes pendant la navigation
+        function dimPlacettesForNavigation(dim) {
+            const placettesContainer = document.querySelector('.leaflet-marker-pane');
+            if (placettesContainer) {
+                if (dim) {
+                    placettesContainer.classList.add('navigation-mode');
+                } else {
+                    placettesContainer.classList.remove('navigation-mode');
+                }
+            }
+            
+            // Aussi atténuer les clusters
+            const shadowPane = document.querySelector('.leaflet-shadow-pane');
+            if (shadowPane) {
+                shadowPane.style.opacity = dim ? '0.3' : '1';
+            }
         }
         
         function formatTime(seconds) {
@@ -2877,17 +3529,24 @@
             document.getElementById('dataReperesCount').textContent = distinctReperes;
         }
         
+        // Couleurs pour les couches importées
+        const layerColors = ['#00d4aa', '#ff6b6b', '#ffd93d', '#a855f7', '#3b82f6', '#f97316', '#ec4899', '#14b8a6'];
+        
         function addGeoJSONLayer(geojson, name) {
+            // Choisir une couleur différente pour chaque couche
+            const colorIndex = state.customLayers.length % layerColors.length;
+            const color = layerColors[colorIndex];
+            
             const layer = L.geoJSON(geojson, {
                 style: {
-                    color: '#00d4aa',
+                    color: color,
                     weight: 2,
                     fillOpacity: 0.3
                 },
                 pointToLayer: (feature, latlng) => {
                     return L.circleMarker(latlng, {
                         radius: 6,
-                        fillColor: '#00d4aa',
+                        fillColor: color,
                         color: '#fff',
                         weight: 2,
                         fillOpacity: 0.8
@@ -2895,16 +3554,20 @@
                 }
             }).addTo(state.map);
             
-            state.customLayers.push({ name, layer });
+            state.customLayers.push({ name, layer, color });
             updateLayersList();
             state.map.fitBounds(layer.getBounds());
         }
         
         function updateLayersList() {
+            // Mettre à jour la liste dans l'onglet Couches
             const list = document.getElementById('layersList');
             list.innerHTML = state.customLayers.map((l, i) => `
                 <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; margin-top: 8px;">
-                    <span style="font-size: 0.85rem;">${l.name}</span>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 16px; height: 16px; background: ${l.color || '#00d4aa'}; border-radius: 4px;"></div>
+                        <span style="font-size: 0.85rem;">${l.name}</span>
+                    </div>
                     <button onclick="removeCustomLayer(${i})" style="background: none; border: none; color: var(--danger); cursor: pointer;">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
@@ -2912,6 +3575,26 @@
                     </button>
                 </div>
             `).join('');
+            
+            // Mettre à jour la légende flottante
+            updateLegendCustomLayers();
+        }
+        
+        function updateLegendCustomLayers() {
+            const legendSection = document.getElementById('legendCustomLayers');
+            const legendList = document.getElementById('legendCustomLayersList');
+            
+            if (state.customLayers.length === 0) {
+                legendSection.style.display = 'none';
+            } else {
+                legendSection.style.display = 'block';
+                legendList.innerHTML = state.customLayers.map(l => `
+                    <div class="legend-item">
+                        <div class="legend-marker custom" style="background: ${l.color || '#00d4aa'};"></div>
+                        <span>${l.name}</span>
+                    </div>
+                `).join('');
+            }
         }
         
         function removeCustomLayer(index) {
@@ -2990,6 +3673,16 @@
             // Zoom
             document.getElementById('zoomInBtn').addEventListener('click', () => state.map.zoomIn());
             document.getElementById('zoomOutBtn').addEventListener('click', () => state.map.zoomOut());
+            
+            // Légende
+            document.getElementById('legendBtn').addEventListener('click', () => {
+                document.getElementById('mapLegend').classList.toggle('visible');
+                document.getElementById('legendBtn').classList.toggle('active');
+            });
+            document.getElementById('legendClose').addEventListener('click', () => {
+                document.getElementById('mapLegend').classList.remove('visible');
+                document.getElementById('legendBtn').classList.remove('active');
+            });
             
             // Départ radio
             document.querySelectorAll('input[name="depart"]').forEach(radio => {
@@ -3071,6 +3764,20 @@
             });
             
             document.getElementById('zoomToAll').addEventListener('click', zoomToAllPlacettes);
+            
+            // Sélection de placettes
+            setupSelectionAutocomplete();
+            document.getElementById('addSelectionBtn').addEventListener('click', () => {
+                const input = document.getElementById('selectionInput');
+                const id = input.value.trim();
+                if (id && PLACETTES_DATA.find(p => p.id === id)) {
+                    addToSelection(id);
+                    input.value = '';
+                }
+            });
+            document.getElementById('clearSelectionBtn').addEventListener('click', clearSelection);
+            document.getElementById('keepSelectedBtn').addEventListener('click', keepOnlySelected);
+            document.getElementById('restoreAllBtn').addEventListener('click', restoreAllPlacettes);
             
             // Recherche placette - synchroniser avec le champ zoom
             document.getElementById('searchPlacette').addEventListener('input', (e) => {
