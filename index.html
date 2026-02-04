@@ -8,6 +8,10 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <!-- Scripts pour le routage offline -->
+    <script src="road_graph.js"></script>
+    <script src="roads_geojson.js"></script>
+    <script src="dijkstra_tsp_v2.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -308,6 +312,25 @@
         .btn-secondary:hover {
             border-color: var(--accent);
             color: var(--accent);
+        }
+        
+        .btn-accent {
+            background: linear-gradient(135deg, #f59e0b, #fbbf24);
+            color: #1a1a2e;
+            font-weight: 600;
+        }
+        
+        .btn-accent:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(245, 158, 11, 0.4);
+        }
+        
+        .btn-accent:disabled {
+            background: rgba(245, 158, 11, 0.3);
+            color: rgba(255, 255, 255, 0.5);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
         
         .btn-danger {
@@ -813,6 +836,17 @@
             color: white;
         }
         
+        .popup-btn.parcours-btn {
+            background: rgba(245, 158, 11, 0.2);
+            border-color: #f59e0b;
+            color: #f59e0b;
+        }
+        
+        .popup-btn.parcours-btn:hover {
+            background: #f59e0b;
+            color: white;
+        }
+        
         /* Clusters */
         .marker-cluster {
             background: rgba(0, 212, 170, 0.3);
@@ -1037,18 +1071,6 @@
             }
         }
         
-        /* Mode navigation - atténuer les placettes */
-        .navigation-mode {
-            opacity: 0.3;
-            pointer-events: none;
-        }
-        
-        .navigation-mode .route-marker-start,
-        .navigation-mode .route-marker-end {
-            opacity: 1 !important;
-            pointer-events: auto !important;
-        }
-        
         /* Ligne d'itinéraire au-dessus */
         .leaflet-overlay-pane {
             z-index: 450;
@@ -1056,8 +1078,673 @@
         
         /* Marqueurs de route au-dessus de tout */
         .route-marker-start,
-        .route-marker-end {
+        .route-marker-end,
+        .optimized-marker {
             z-index: 2000 !important;
+        }
+        
+        /* Résultat itinéraire optimisé */
+        .optimized-route-result {
+            padding: 0;
+        }
+        
+        .optimized-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: #f59e0b;
+        }
+        
+        .transport-badge {
+            margin-left: auto;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            background: rgba(245, 158, 11, 0.2);
+            border-radius: 12px;
+            color: #fbbf24;
+        }
+        
+        .route-type-badge {
+            text-align: center;
+            font-size: 0.75rem;
+            padding: 6px 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .route-type-road {
+            background: rgba(0, 212, 170, 0.15);
+            color: #00d4aa;
+            border: 1px solid rgba(0, 212, 170, 0.3);
+        }
+        
+        .route-type-fallback {
+            background: rgba(255, 107, 107, 0.15);
+            color: #ff6b6b;
+            border: 1px solid rgba(255, 107, 107, 0.3);
+        }
+        
+        /* Bouton danger */
+        .btn-danger {
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            color: white;
+            border: none;
+        }
+        
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #b91c1c, #dc2626);
+            transform: translateY(-1px);
+        }
+        
+        /* Zone résultat multi-route */
+        .multi-route-result {
+            margin-top: 16px;
+            padding: 16px;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 12px;
+        }
+        
+        .multi-route-result .result-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            color: #f59e0b;
+            font-weight: 600;
+        }
+        
+        .multi-route-result .result-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        
+        .multi-route-result .result-stat {
+            text-align: center;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+        
+        .multi-route-result .result-stat-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #f59e0b;
+        }
+        
+        .multi-route-result .result-stat-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+        
+        .multi-route-result .result-order {
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            font-size: 0.8rem;
+        }
+        
+        .multi-route-result .result-order-title {
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        
+        .multi-route-result .result-order-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+        
+        .multi-route-result .result-order-item {
+            padding: 4px 8px;
+            background: rgba(245, 158, 11, 0.2);
+            border-radius: 4px;
+            color: #fbbf24;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+        }
+        
+        .multi-route-result .result-order-item.gps {
+            background: rgba(66, 133, 244, 0.2);
+            color: #60a5fa;
+        }
+        
+        .multi-route-result .result-order-arrow {
+            color: var(--text-muted);
+        }
+        
+        /* Animation marqueur sélection multi-route */
+        @keyframes pulseSelection {
+            0%, 100% {
+                box-shadow: 0 2px 10px rgba(245, 158, 11, 0.5);
+                transform: scale(1);
+            }
+            50% {
+                box-shadow: 0 2px 20px rgba(245, 158, 11, 0.8);
+                transform: scale(1.05);
+            }
+        }
+        
+        .multi-route-selection-marker {
+            z-index: 1500 !important;
+        }
+        
+        .optimized-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        
+        .optimized-stat {
+            text-align: center;
+            padding: 10px;
+            background: rgba(245, 158, 11, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+        
+        .optimized-value {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #f59e0b;
+        }
+        
+        .optimized-label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+        
+        .optimized-order {
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+        
+        .optimized-order-title {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        
+        .optimized-order-list {
+            font-size: 0.8rem;
+            line-height: 1.8;
+            word-break: break-word;
+        }
+        
+        .order-item {
+            display: inline-block;
+            padding: 2px 8px;
+            background: rgba(245, 158, 11, 0.2);
+            border-radius: 4px;
+            color: #fbbf24;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            margin: 2px 0;
+        }
+        
+        .order-item.gps {
+            background: rgba(66, 133, 244, 0.2);
+            color: #60a5fa;
+        }
+        
+        /* Section Multi-Route */
+        .multi-route-section {
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        
+        .section-header:hover {
+            background: rgba(245, 158, 11, 0.1);
+        }
+        
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            color: #f59e0b;
+        }
+        
+        .section-arrow {
+            transition: transform 0.3s ease;
+        }
+        
+        .section-arrow.rotated {
+            transform: rotate(180deg);
+        }
+        
+        .section-content {
+            padding: 0 16px 16px;
+        }
+        
+        .section-hint {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+            line-height: 1.4;
+        }
+        
+        .multi-input-group {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .multi-route-list {
+            max-height: 180px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .multi-route-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .multi-route-list::-webkit-scrollbar-thumb {
+            background: #f59e0b;
+            border-radius: 3px;
+        }
+        
+        .multi-route-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 6px;
+            margin-bottom: 6px;
+        }
+        
+        .multi-route-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .multi-route-item-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .multi-route-item-num {
+            width: 24px;
+            height: 24px;
+            background: #f59e0b;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        
+        .multi-route-item-code {
+            font-family: 'Space Mono', monospace;
+            color: #fbbf24;
+            font-size: 0.85rem;
+        }
+        
+        .multi-route-item-remove {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+        
+        .multi-route-item-remove:hover {
+            color: var(--danger);
+            background: rgba(255, 107, 107, 0.1);
+        }
+        
+        .multi-route-count {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        
+        .multi-route-count span {
+            color: #f59e0b;
+            font-weight: bold;
+        }
+        
+        .radio-group-small {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .radio-small {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+        }
+        
+        .radio-small:hover {
+            border-color: var(--accent);
+        }
+        
+        .radio-small.selected {
+            border-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.1);
+        }
+        
+        .radio-small input {
+            display: none;
+        }
+        
+        .multi-route-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .multi-route-actions .btn {
+            flex: 1;
+        }
+        
+        /* Modes de transport Multi-Route */
+        .multi-transport-modes {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        
+        .multi-transport-mode {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 12px 8px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .multi-transport-mode:hover {
+            border-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.1);
+        }
+        
+        .multi-transport-mode.active {
+            border-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.15);
+        }
+        
+        .multi-transport-mode svg {
+            width: 24px;
+            height: 24px;
+            stroke: var(--text-muted);
+            transition: stroke 0.2s ease;
+        }
+        
+        .multi-transport-mode.active svg {
+            stroke: #f59e0b;
+        }
+        
+        .multi-transport-mode span {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            transition: color 0.2s ease;
+        }
+        
+        .multi-transport-mode.active span {
+            color: #f59e0b;
+            font-weight: 600;
+        }
+        
+        .multi-transport-mode small {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            opacity: 0.7;
+        }
+        
+        .multi-transport-mode.active small {
+            color: #fbbf24;
+        }
+        
+        /* Mode de sélection toggle */
+        .selection-mode-toggle {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .selection-mode-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .selection-mode-btn:hover {
+            border-color: #f59e0b;
+            color: #f59e0b;
+        }
+        
+        .selection-mode-btn.active {
+            border-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+        }
+        
+        .selection-mode-btn svg {
+            flex-shrink: 0;
+        }
+        
+        /* Toggle Global Routing en haut */
+        .global-routing-toggle {
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.2);
+        }
+        
+        .routing-mode-toggle-compact {
+            display: flex;
+            gap: 6px;
+        }
+        
+        .routing-mode-btn-compact {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .routing-mode-btn-compact:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        
+        .routing-mode-btn-compact.active {
+            border-color: var(--accent);
+            background: rgba(0, 212, 170, 0.2);
+            color: var(--accent);
+        }
+        
+        .global-controls-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 8px;
+        }
+        
+        .routing-status {
+            font-size: 0.7rem;
+            color: var(--accent);
+        }
+        
+        .network-toggle-compact {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+        
+        .network-toggle-compact:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .network-toggle-compact span {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+        
+        .toggle-switch-small {
+            width: 32px;
+            height: 18px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 9px;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+        
+        .toggle-switch-small::after {
+            content: '';
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: all 0.2s ease;
+        }
+        
+        .toggle-switch-small.active {
+            background: var(--accent);
+        }
+        
+        .toggle-switch-small.active::after {
+            left: 16px;
+            background: white;
+        }
+        
+        /* Mode de routage toggle */
+        .routing-mode-toggle {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .routing-mode-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .routing-mode-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        
+        .routing-mode-btn.active {
+            border-color: var(--accent);
+            background: rgba(0, 212, 170, 0.15);
+            color: var(--accent);
+        }
+        
+        .routing-mode-info {
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: rgba(0, 212, 170, 0.1);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: var(--accent);
+        }
+        
+        /* Info sélection sur carte */
+        .carte-selection-info {
+            text-align: center;
+            padding: 20px;
+            background: rgba(245, 158, 11, 0.1);
+            border: 2px dashed rgba(245, 158, 11, 0.4);
+            border-radius: 12px;
+        }
+        
+        .carte-selection-icon {
+            margin-bottom: 10px;
+        }
+        
+        .carte-selection-info p {
+            color: var(--text);
+            font-size: 0.9rem;
+            margin-bottom: 6px;
+        }
+        
+        .carte-selection-info small {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+        
+        /* Marqueur en mode sélection multi-route */
+        .multi-route-selection-mode .leaflet-marker-icon {
+            cursor: pointer !important;
         }
         
         /* Tooltip pour couches admin */
@@ -1405,6 +2092,35 @@
             </div>
         </div>
         
+        <!-- Toggle Global Online/Offline -->
+        <div class="global-routing-toggle">
+            <div class="routing-mode-toggle-compact">
+                <button class="routing-mode-btn-compact active" id="globalRoutingOffline" onclick="setRoutingMode('offline')" title="Mode Offline - Réseau local">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Offline
+                </button>
+                <button class="routing-mode-btn-compact" id="globalRoutingOnline" onclick="setRoutingMode('online')" title="Mode Online - OpenRouteService">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                    </svg>
+                    Online
+                </button>
+            </div>
+            <div class="global-controls-row">
+                <div class="routing-status" id="globalRoutingStatus">
+                    🗺️ Réseau local actif
+                </div>
+                <div class="network-toggle-compact" onclick="toggleRoadsDisplay()">
+                    <div class="toggle-switch-small" id="toggleRoadsGlobal"></div>
+                    <span>Afficher réseau</span>
+                </div>
+            </div>
+        </div>
+        
         <div class="tabs">
             <button class="tab active" data-tab="navigation">Navigation</button>
             <button class="tab" data-tab="placettes">Placettes</button>
@@ -1600,6 +2316,179 @@
                     </svg>
                     Effacer l'itinéraire
                 </button>
+                
+                <div class="divider"></div>
+                
+                <!-- Section Itinéraire Multi-Points -->
+                <div class="multi-route-section">
+                    <div class="section-header" onclick="toggleMultiRouteSection()">
+                        <div class="section-title">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+                                <circle cx="5" cy="6" r="2"/>
+                                <circle cx="12" cy="18" r="2"/>
+                                <circle cx="19" cy="6" r="2"/>
+                                <path d="M5 8v4a2 2 0 002 2h3m4 0h3a2 2 0 002-2V8"/>
+                                <path d="M12 14V8"/>
+                            </svg>
+                            <span>Itinéraire Multi-Points</span>
+                        </div>
+                        <svg class="section-arrow" id="multiRouteArrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                    </div>
+                    
+                    <div class="section-content" id="multiRouteContent" style="display: none;">
+                        <p class="section-hint">Sélectionnez plusieurs placettes et calculez le parcours optimal pour les visiter toutes.</p>
+                        
+                        <!-- Mode de sélection -->
+                        <div class="form-group">
+                            <label class="form-label">Mode de sélection</label>
+                            <div class="selection-mode-toggle">
+                                <button class="selection-mode-btn active" id="selectionModeCode" onclick="setMultiRouteSelectionMode('code')">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="11" cy="11" r="8"/>
+                                        <path d="M21 21l-4.35-4.35"/>
+                                    </svg>
+                                    Par code
+                                </button>
+                                <button class="selection-mode-btn" id="selectionModeCarte" onclick="setMultiRouteSelectionMode('carte')">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+                                        <circle cx="12" cy="10" r="3"/>
+                                    </svg>
+                                    Sur la carte
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Sélection par code -->
+                        <div class="form-group" id="multiRouteCodeSection">
+                            <label class="form-label">Ajouter des placettes</label>
+                            <div class="multi-input-group">
+                                <div class="autocomplete-wrapper" style="flex: 1;">
+                                    <div class="autocomplete-list" id="multiRouteAutocompleteList"></div>
+                                    <input type="text" class="form-input" id="multiRouteInput" placeholder="Tapez un code..." autocomplete="off">
+                                </div>
+                                <button class="btn btn-icon" id="addMultiRouteBtn" title="Ajouter">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 5v14M5 12h14"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Sélection sur la carte (message) -->
+                        <div class="form-group" id="multiRouteCarteSection" style="display: none;">
+                            <div class="carte-selection-info">
+                                <div class="carte-selection-icon">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+                                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+                                        <circle cx="12" cy="10" r="3"/>
+                                    </svg>
+                                </div>
+                                <p>Cliquez sur les placettes sur la carte pour les ajouter au parcours</p>
+                                <small>Les placettes sélectionnées apparaîtront dans la liste ci-dessous</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Liste des placettes sélectionnées -->
+                        <div class="multi-route-list" id="multiRouteList">
+                            <p class="no-selection">Aucune placette sélectionnée</p>
+                        </div>
+                        
+                        <!-- Compteur -->
+                        <div class="multi-route-count">
+                            <span id="multiRouteCount">0</span> placette(s) sélectionnée(s)
+                        </div>
+                        
+                        <!-- Options de départ -->
+                        <div class="form-group">
+                            <label class="form-label">Point de départ</label>
+                            <div class="radio-group-small">
+                                <label class="radio-small selected">
+                                    <input type="radio" name="multiDepart" value="gps" checked>
+                                    <span>Ma position GPS</span>
+                                </label>
+                                <label class="radio-small">
+                                    <input type="radio" name="multiDepart" value="first">
+                                    <span>Première placette</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Mode de transport -->
+                        <div class="form-group">
+                            <label class="form-label">Mode de déplacement</label>
+                            <div class="multi-transport-modes">
+                                <div class="multi-transport-mode active" data-mode="foot">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="5" r="2"/>
+                                        <path d="M10 22l3-9 3 9M9 12l3-3 3 3"/>
+                                    </svg>
+                                    <span>À pied</span>
+                                    <small>4 km/h</small>
+                                </div>
+                                <div class="multi-transport-mode" data-mode="car">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M5 17h14v-5l-2-6H7l-2 6v5z"/>
+                                        <circle cx="7.5" cy="17.5" r="1.5"/>
+                                        <circle cx="16.5" cy="17.5" r="1.5"/>
+                                    </svg>
+                                    <span>Voiture</span>
+                                    <small>40 km/h</small>
+                                </div>
+                                <div class="multi-transport-mode" data-mode="bike">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="5.5" cy="17.5" r="3.5"/>
+                                        <circle cx="18.5" cy="17.5" r="3.5"/>
+                                        <path d="M12 17.5l-3.5-7 7-3"/>
+                                    </svg>
+                                    <span>Vélo</span>
+                                    <small>12 km/h</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Toggle affichage réseau routier -->
+                        <div class="form-group">
+                            <div class="toggle-item" style="justify-content: space-between;">
+                                <span class="toggle-label">Afficher réseau routier</span>
+                                <div class="toggle-switch" id="toggleRoads" onclick="toggleRoadsDisplay()"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Actions -->
+                        <div class="multi-route-actions">
+                            <button class="btn btn-secondary" id="clearMultiRouteBtn" disabled>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 6L6 18M6 6l12 12"/>
+                                </svg>
+                                Effacer liste
+                            </button>
+                            <button class="btn btn-accent" id="calculateMultiRouteBtn" disabled>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M9 18l6-6-6-6"/>
+                                </svg>
+                                Calculer parcours
+                            </button>
+                        </div>
+                        
+                        <!-- Résultat du parcours -->
+                        <div class="multi-route-result" id="multiRouteResult" style="display: none;">
+                            <!-- Le contenu sera injecté dynamiquement -->
+                        </div>
+                        
+                        <!-- Bouton effacer itinéraire -->
+                        <button class="btn btn-danger" id="clearMultiRouteItineraryBtn" style="display: none; width: 100%; margin-top: 12px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                                <line x1="10" y1="11" x2="10" y2="17"/>
+                                <line x1="14" y1="11" x2="14" y2="17"/>
+                            </svg>
+                            Effacer l'itinéraire et réinitialiser
+                        </button>
+                    </div>
+                </div>
             </div>
             
             <!-- Onglet Placettes -->
@@ -2009,7 +2898,9 @@
             birdMarkerEnd: null,
             // Sélection de placettes
             selectedPlacettes: new Set(),
-            isFilteredMode: false
+            isFilteredMode: false,
+            // Itinéraire optimisé
+            optimizedRoute: null
         };
         
         // Données par défaut (sauvegarde)
@@ -2170,7 +3061,14 @@
                 
                 // Ajouter l'événement de clic pour la sélection
                 placetteMarker.on('click', (e) => {
-                    // Si Ctrl est maintenu, ajouter à la sélection
+                    // Mode multi-route : ajouter au parcours
+                    if (multiRouteState.selectionMode === 'carte') {
+                        e.originalEvent.stopPropagation();
+                        addToMultiRoute(p.id);
+                        return;
+                    }
+                    
+                    // Si Ctrl est maintenu, ajouter à la sélection (onglet Placettes)
                     if (e.originalEvent.ctrlKey || e.originalEvent.metaKey) {
                         e.originalEvent.stopPropagation();
                         togglePlacetteSelection(p.id, true);
@@ -2241,6 +3139,9 @@
                         </button>
                         <button class="popup-btn select-btn" onclick="addToSelection('${p.id}')">
                             Sélectionner
+                        </button>
+                        <button class="popup-btn parcours-btn" onclick="addToMultiRoute('${p.id}')">
+                            + Parcours
                         </button>
                     </div>
                 </div>
@@ -2522,6 +3423,476 @@
             showNotification(`${PLACETTES_DATA.length} placettes restaurées`);
         }
         
+        // ============================================
+        // ITINÉRAIRE OPTIMAL (TSP - Nearest Neighbor)
+        // ============================================
+        function calculateOptimizedRoute() {
+            if (state.selectedPlacettes.size < 2) {
+                showNotification('Sélectionnez au moins 2 placettes');
+                return;
+            }
+            
+            // Récupérer les placettes sélectionnées
+            const selectedIds = Array.from(state.selectedPlacettes);
+            const placettes = selectedIds.map(id => PLACETTES_DATA.find(p => p.id === id)).filter(p => p);
+            
+            if (placettes.length < 2) {
+                showNotification('Placettes non trouvées');
+                return;
+            }
+            
+            showNotification('Calcul de l\'itinéraire optimal...');
+            
+            // Point de départ : position utilisateur ou première placette
+            let startPoint;
+            if (state.userPosition) {
+                startPoint = { lat: state.userPosition[0], lng: state.userPosition[1], id: 'GPS' };
+            } else {
+                startPoint = { lat: placettes[0].y, lng: placettes[0].x, id: placettes[0].id };
+            }
+            
+            // Optimiser l'ordre avec l'algorithme du plus proche voisin
+            const optimizedOrder = optimizeRouteOrder(startPoint, placettes);
+            
+            // Créer l'itinéraire multi-points
+            createOptimizedRoute(startPoint, optimizedOrder);
+        }
+        
+        function optimizeRouteOrder(startPoint, placettes) {
+            // Algorithme du plus proche voisin (Nearest Neighbor)
+            const remaining = [...placettes];
+            const ordered = [];
+            let current = startPoint;
+            
+            while (remaining.length > 0) {
+                let nearestIndex = 0;
+                let nearestDist = Infinity;
+                
+                for (let i = 0; i < remaining.length; i++) {
+                    const dist = haversineDistance(
+                        current.lat, current.lng,
+                        remaining[i].y, remaining[i].x
+                    );
+                    if (dist < nearestDist) {
+                        nearestDist = dist;
+                        nearestIndex = i;
+                    }
+                }
+                
+                const nearest = remaining.splice(nearestIndex, 1)[0];
+                ordered.push(nearest);
+                current = { lat: nearest.y, lng: nearest.x };
+            }
+            
+            return ordered;
+        }
+        
+        function haversineDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371e3; // Rayon de la Terre en mètres
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lng2 - lng1) * Math.PI / 180;
+            
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            
+            return R * c;
+        }
+        
+        function createOptimizedRoute(startPoint, orderedPlacettes) {
+            // Utiliser la version avec mode, en prenant le mode de transport global
+            createOptimizedRouteWithMode(startPoint, orderedPlacettes, state.transportMode);
+        }
+        
+        // Version avec mode de transport spécifique (pour Multi-Route)
+        function createOptimizedRouteWithMode(startPoint, orderedPlacettes, transportMode) {
+            // Nettoyer les anciens itinéraires
+            clearRoute();
+            
+            // Masquer toutes les placettes
+            dimPlacettesForNavigation(true);
+            
+            // Sauvegarder dans le state
+            state.optimizedRoute = {
+                placettes: orderedPlacettes,
+                startFromGPS: startPoint.id === 'GPS',
+                polyline: null,
+                markers: [],
+                placetteMarkers: [],
+                transportMode: transportMode
+            };
+            
+            // Construire la liste des waypoints pour Leaflet Routing Machine
+            const waypoints = [];
+            const pointsInfo = []; // Pour stocker les infos des points
+            
+            // Point de départ
+            if (startPoint.id === 'GPS') {
+                waypoints.push(L.latLng(startPoint.lat, startPoint.lng));
+                pointsInfo.push({ isGPS: true, label: 'D', name: 'Votre position' });
+            }
+            
+            // Ajouter toutes les placettes dans l'ordre optimisé
+            orderedPlacettes.forEach((p, i) => {
+                waypoints.push(L.latLng(p.y, p.x));
+                pointsInfo.push({ 
+                    isGPS: false, 
+                    label: (i + 1).toString(), 
+                    name: p.id,
+                    placette: p
+                });
+            });
+            
+            // Sauvegarder les infos pour createMarker
+            state.optimizedRoute.pointsInfo = pointsInfo;
+            
+            showNotification('🔄 Calcul du trajet routier...');
+            
+            // Utiliser Leaflet Routing Machine (même que itinéraire simple)
+            const profiles = {
+                car: 'car',
+                foot: 'foot',
+                bike: 'bike'
+            };
+            
+            state.routingControl = L.Routing.control({
+                waypoints: waypoints,
+                router: L.Routing.osrmv1({
+                    serviceUrl: 'https://router.project-osrm.org/route/v1',
+                    profile: profiles[transportMode] || 'foot'
+                }),
+                lineOptions: {
+                    styles: [
+                        { color: '#f59e0b', weight: 6, opacity: 0.8 },
+                        { color: '#fbbf24', weight: 4, opacity: 1 }
+                    ],
+                    addWaypoints: false
+                },
+                createMarker: function(i, wp, n) {
+                    const info = state.optimizedRoute.pointsInfo[i];
+                    
+                    if (info.isGPS) {
+                        // Marqueur GPS de départ
+                        const icon = L.divIcon({
+                            className: 'optimized-marker',
+                            html: `<div style="
+                                width: 36px; height: 36px;
+                                background: #4285f4;
+                                border: 3px solid white;
+                                border-radius: 50%;
+                                box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+                                display: flex; align-items: center; justify-content: center;
+                                color: white; font-size: 14px; font-weight: bold;
+                            ">D</div>`,
+                            iconSize: [36, 36],
+                            iconAnchor: [18, 18]
+                        });
+                        
+                        const marker = L.marker(wp.latLng, { icon: icon, zIndexOffset: 2000 });
+                        marker.bindPopup(`
+                            <div style="text-align:center; min-width: 100px;">
+                                <strong style="color:#4285f4; font-size: 14px;">🚀 Départ</strong><br>
+                                <span>Votre position GPS</span>
+                            </div>
+                        `);
+                        return marker;
+                    } else {
+                        // Marqueur placette avec badge numéro
+                        const isLast = i === n - 1;
+                        const badgeColor = isLast ? '#ff6b6b' : '#f59e0b';
+                        
+                        const icon = L.divIcon({
+                            className: 'placette-with-badge',
+                            html: `
+                                <div style="position: relative;">
+                                    <div style="
+                                        width: 28px; height: 28px;
+                                        background: linear-gradient(135deg, #00d4aa, #00ffcc);
+                                        border: 3px solid white;
+                                        border-radius: 50%;
+                                        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                                        display: flex; align-items: center; justify-content: center;
+                                    ">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+                                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                                        </svg>
+                                    </div>
+                                    <div style="
+                                        position: absolute;
+                                        top: -8px;
+                                        right: -8px;
+                                        width: 22px; height: 22px;
+                                        background: ${badgeColor};
+                                        border: 2px solid white;
+                                        border-radius: 50%;
+                                        display: flex; align-items: center; justify-content: center;
+                                        color: white; font-size: 11px; font-weight: bold;
+                                        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                                    ">${info.label}</div>
+                                </div>
+                            `,
+                            iconSize: [36, 36],
+                            iconAnchor: [14, 28]
+                        });
+                        
+                        const marker = L.marker(wp.latLng, { icon: icon, zIndexOffset: 2000 });
+                        marker.bindPopup(createPlacettePopup(info.placette));
+                        return marker;
+                    }
+                },
+                show: false,
+                addWaypoints: false,
+                fitSelectedRoutes: true,
+                routeWhileDragging: false
+            }).addTo(state.map);
+            
+            // Quand la route est trouvée
+            state.routingControl.on('routesfound', function(e) {
+                const route = e.routes[0];
+                const distance = route.summary.totalDistance;
+                const time = route.summary.totalTime;
+                
+                showOptimizedRouteResultsWithMode(distance, time, orderedPlacettes, transportMode, false);
+                
+                const modeNames = { foot: 'à pied', car: 'en voiture', bike: 'à vélo' };
+                showNotification(`✅ Trajet ${modeNames[transportMode]} : ${(distance/1000).toFixed(1)} km`);
+                
+                document.getElementById('clearRoute').style.display = 'flex';
+            });
+            
+            // En cas d'erreur de routage
+            state.routingControl.on('routingerror', function(e) {
+                console.error('Erreur routage:', e);
+                showNotification('⚠️ Route non trouvée - calcul à vol d\'oiseau');
+                
+                // Supprimer le routing control qui a échoué
+                if (state.routingControl) {
+                    state.map.removeControl(state.routingControl);
+                    state.routingControl = null;
+                }
+                
+                // Fallback : vol d'oiseau
+                createFallbackRoute(startPoint, orderedPlacettes, transportMode);
+            });
+        }
+        
+        // Fallback si le routage OSRM échoue
+        function createFallbackRoute(startPoint, orderedPlacettes, transportMode) {
+            const points = [];
+            
+            if (startPoint.id === 'GPS') {
+                points.push({ lat: startPoint.lat, lng: startPoint.lng, isGPS: true, label: 'D', name: 'Votre position' });
+            }
+            
+            orderedPlacettes.forEach((p, i) => {
+                points.push({ lat: p.y, lng: p.x, isGPS: false, label: (i + 1).toString(), name: p.id, placette: p });
+            });
+            
+            // Créer la polyline en pointillé (vol d'oiseau)
+            const latlngs = points.map(p => [p.lat, p.lng]);
+            state.optimizedRoute.polyline = L.polyline(latlngs, {
+                color: '#f59e0b',
+                weight: 4,
+                opacity: 0.8,
+                dashArray: '10, 10'
+            }).addTo(state.map);
+            
+            // Créer les marqueurs
+            points.forEach((point, i) => {
+                const isLast = i === points.length - 1;
+                const badgeColor = point.isGPS ? '#4285f4' : (isLast ? '#ff6b6b' : '#f59e0b');
+                
+                let icon;
+                if (point.isGPS) {
+                    icon = L.divIcon({
+                        className: 'optimized-marker',
+                        html: `<div style="
+                            width: 36px; height: 36px;
+                            background: #4285f4;
+                            border: 3px solid white;
+                            border-radius: 50%;
+                            box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+                            display: flex; align-items: center; justify-content: center;
+                            color: white; font-size: 14px; font-weight: bold;
+                        ">D</div>`,
+                        iconSize: [36, 36],
+                        iconAnchor: [18, 18]
+                    });
+                } else {
+                    icon = L.divIcon({
+                        className: 'placette-with-badge',
+                        html: `
+                            <div style="position: relative;">
+                                <div style="
+                                    width: 28px; height: 28px;
+                                    background: linear-gradient(135deg, #00d4aa, #00ffcc);
+                                    border: 3px solid white;
+                                    border-radius: 50%;
+                                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                                    display: flex; align-items: center; justify-content: center;
+                                ">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+                                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                                    </svg>
+                                </div>
+                                <div style="
+                                    position: absolute;
+                                    top: -8px;
+                                    right: -8px;
+                                    width: 22px; height: 22px;
+                                    background: ${badgeColor};
+                                    border: 2px solid white;
+                                    border-radius: 50%;
+                                    display: flex; align-items: center; justify-content: center;
+                                    color: white; font-size: 11px; font-weight: bold;
+                                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                                ">${point.label}</div>
+                            </div>
+                        `,
+                        iconSize: [36, 36],
+                        iconAnchor: [14, 28]
+                    });
+                }
+                
+                const marker = L.marker([point.lat, point.lng], { icon: icon, zIndexOffset: 2000 }).addTo(state.map);
+                
+                if (point.isGPS) {
+                    marker.bindPopup(`<div style="text-align:center;"><strong style="color:#4285f4;">🚀 Départ</strong><br>Votre position GPS</div>`);
+                    state.optimizedRoute.markers.push(marker);
+                } else {
+                    marker.bindPopup(createPlacettePopup(point.placette));
+                    state.optimizedRoute.placetteMarkers.push(marker);
+                }
+            });
+            
+            // Calculer distance à vol d'oiseau
+            let totalDistance = 0;
+            for (let i = 0; i < points.length - 1; i++) {
+                totalDistance += haversineDistance(points[i].lat, points[i].lng, points[i+1].lat, points[i+1].lng);
+            }
+            
+            // Estimer le temps
+            const speeds = { car: 40, foot: 4, bike: 12 };
+            const timeSeconds = (totalDistance / 1000 / (speeds[transportMode] || 4)) * 3600;
+            
+            state.map.fitBounds(state.optimizedRoute.polyline.getBounds(), { padding: [50, 50] });
+            showOptimizedRouteResultsWithMode(totalDistance, timeSeconds, orderedPlacettes, transportMode, true);
+            document.getElementById('clearRoute').style.display = 'flex';
+        }
+        
+        function showOptimizedRouteResultsWithMode(distance, time, orderedPlacettes, transportMode, isFallback = false) {
+            const modeIcons = {
+                foot: '🚶',
+                car: '🚗',
+                bike: '🚴'
+            };
+            const modeNames = {
+                foot: 'À pied',
+                car: 'En voiture', 
+                bike: 'À vélo'
+            };
+            
+            const routeType = isFallback ? '📐 Vol d\'oiseau' : '🛣️ Trajet routier';
+            const routeTypeClass = isFallback ? 'route-type-fallback' : 'route-type-road';
+            
+            // Afficher dans la zone de résultat du multi-route
+            const multiRouteResult = document.getElementById('multiRouteResult');
+            multiRouteResult.innerHTML = `
+                <div class="result-header">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                    <span>Parcours calculé</span>
+                    <span class="transport-badge" style="margin-left: auto;">${modeIcons[transportMode] || ''} ${modeNames[transportMode] || ''}</span>
+                </div>
+                <div class="route-type-badge ${routeTypeClass}" style="margin-bottom: 12px;">${routeType}</div>
+                <div class="result-stats">
+                    <div class="result-stat">
+                        <div class="result-stat-value">${orderedPlacettes.length}</div>
+                        <div class="result-stat-label">Placettes</div>
+                    </div>
+                    <div class="result-stat">
+                        <div class="result-stat-value">${distance >= 1000 ? (distance / 1000).toFixed(1) + ' km' : Math.round(distance) + ' m'}</div>
+                        <div class="result-stat-label">Distance</div>
+                    </div>
+                    <div class="result-stat">
+                        <div class="result-stat-value">${formatTime(time)}</div>
+                        <div class="result-stat-label">Durée</div>
+                    </div>
+                </div>
+                <div class="result-order">
+                    <div class="result-order-title">Ordre de visite :</div>
+                    <div class="result-order-list">
+                        ${state.optimizedRoute && state.optimizedRoute.startFromGPS ? '<span class="result-order-item gps">📍 GPS</span><span class="result-order-arrow">→</span>' : ''}
+                        ${orderedPlacettes.map((p, i) => `<span class="result-order-item">${i + 1}. ${p.id}</span>${i < orderedPlacettes.length - 1 ? '<span class="result-order-arrow">→</span>' : ''}`).join('')}
+                    </div>
+                </div>
+            `;
+            multiRouteResult.style.display = 'block';
+            
+            // Afficher le bouton effacer itinéraire
+            document.getElementById('clearMultiRouteItineraryBtn').style.display = 'flex';
+        }
+        
+        function formatDistance(meters) {
+            if (meters >= 1000) {
+                return (meters / 1000).toFixed(2) + ' km';
+            }
+            return Math.round(meters) + ' m';
+        }
+        
+        function showOptimizedRouteResults(distance, time, orderedPlacettes) {
+            // Afficher la section normale, cacher la section vol d'oiseau
+            document.getElementById('routeStatsNormal').style.display = 'none';
+            document.getElementById('routeStatsBird').style.display = 'none';
+            
+            // Créer un affichage spécial pour l'itinéraire optimisé
+            const routeResult = document.getElementById('routeResult');
+            routeResult.innerHTML = `
+                <div class="optimized-route-result">
+                    <div class="optimized-header">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+                            <circle cx="5" cy="6" r="2"/>
+                            <circle cx="12" cy="18" r="2"/>
+                            <circle cx="19" cy="6" r="2"/>
+                            <path d="M5 8v4a2 2 0 002 2h3m4 0h3a2 2 0 002-2V8"/>
+                            <path d="M12 14V8"/>
+                        </svg>
+                        <span>Itinéraire Optimal</span>
+                    </div>
+                    <div class="optimized-stats">
+                        <div class="optimized-stat">
+                            <div class="optimized-value">${orderedPlacettes.length}</div>
+                            <div class="optimized-label">Placettes</div>
+                        </div>
+                        <div class="optimized-stat">
+                            <div class="optimized-value">${distance >= 1000 ? (distance / 1000).toFixed(1) + ' km' : Math.round(distance) + ' m'}</div>
+                            <div class="optimized-label">Distance</div>
+                        </div>
+                        <div class="optimized-stat">
+                            <div class="optimized-value">${formatTime(time)}</div>
+                            <div class="optimized-label">Durée</div>
+                        </div>
+                    </div>
+                    <div class="optimized-order">
+                        <div class="optimized-order-title">Ordre de visite :</div>
+                        <div class="optimized-order-list">
+                            ${state.optimizedRoute.startFromGPS ? '<span class="order-item gps">📍 GPS</span> → ' : ''}
+                            ${orderedPlacettes.map((p, i) => `<span class="order-item">${i + 1}. ${p.id}</span>`).join(' → ')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            routeResult.classList.add('visible');
+            document.getElementById('clearRoute').style.display = 'flex';
+            
+            showNotification(`Itinéraire optimisé : ${orderedPlacettes.length} placettes en ${formatTime(time)}`);
+        }
+        
         function showNotification(message) {
             // Créer une notification temporaire
             const notif = document.createElement('div');
@@ -2547,6 +3918,949 @@
                 notif.style.animation = 'fadeOut 0.3s ease';
                 setTimeout(() => notif.remove(), 300);
             }, 2000);
+        }
+        
+        // ============================================
+        // MULTI-ROUTE (Onglet Navigation)
+        // ============================================
+        const multiRouteState = {
+            placettes: [], // Liste ordonnée des placettes pour le multi-route
+            transportMode: 'foot', // Mode de transport par défaut
+            selectionMode: 'code', // 'code' ou 'carte'
+            selectionMarkers: [], // Marqueurs de sélection sur la carte
+            routingMode: 'offline' // 'offline' ou 'online'
+        };
+        
+        // Clé API OpenRouteService
+        const ORS_API_KEY = '5b3ce3597851110001cf624812983848b23e4817b4fcbefbfc2a9e9c';
+        
+        // Initialiser le routeur offline
+        let offlineRouter = null;
+        let roadsLayer = null;
+        
+        function initOfflineRouter() {
+            if (typeof ROAD_GRAPH !== 'undefined') {
+                // Utiliser le routeur V2 avec les géométries précises
+                const geojson = (typeof ROADS_GEOJSON !== 'undefined') ? ROADS_GEOJSON : null;
+                offlineRouter = new OfflineRouterV2(ROAD_GRAPH, geojson);
+                console.log('✅ Routeur offline V2 initialisé avec géométries précises');
+                showNotification('✅ Routeur offline prêt (précision améliorée)');
+                return true;
+            } else {
+                console.warn('⚠️ ROAD_GRAPH non disponible');
+                return false;
+            }
+        }
+        
+        // Afficher/masquer le réseau routier sur la carte
+        function toggleRoadsLayer(show) {
+            if (show && !roadsLayer && typeof ROADS_GEOJSON !== 'undefined') {
+                // Créer le layer des routes
+                roadsLayer = L.geoJSON(ROADS_GEOJSON, {
+                    style: function(feature) {
+                        const type = feature.properties.t;
+                        const styles = {
+                            'R': { color: '#ff6b6b', weight: 3, opacity: 0.8 }, // Route nationale/régionale
+                            'P': { color: '#fbbf24', weight: 2, opacity: 0.6 }, // Piste
+                            'V': { color: '#8b5cf6', weight: 2, opacity: 0.7 }  // Voie
+                        };
+                        return styles[type] || { color: '#888', weight: 1, opacity: 0.5 };
+                    }
+                }).addTo(state.map);
+                console.log('✅ Réseau routier affiché');
+            } else if (!show && roadsLayer) {
+                state.map.removeLayer(roadsLayer);
+                roadsLayer = null;
+            }
+        }
+        
+        // Routage offline avec Dijkstra
+        function routeOffline(startPoint, orderedPlacettes) {
+            if (!offlineRouter) {
+                showNotification('⚠️ Routeur offline non disponible');
+                return null;
+            }
+            
+            // Construire la liste des points
+            const points = [];
+            
+            if (startPoint.id === 'GPS') {
+                points.push({ lat: startPoint.lat, lng: startPoint.lng, id: 'GPS' });
+            }
+            
+            orderedPlacettes.forEach(p => {
+                points.push({ lat: p.y, lng: p.x, id: p.id });
+            });
+            
+            // Calculer le chemin complet
+            const fullPath = [];
+            let totalDistance = 0;
+            
+            for (let i = 0; i < points.length - 1; i++) {
+                const result = offlineRouter.route(
+                    points[i].lat, points[i].lng,
+                    points[i + 1].lat, points[i + 1].lng
+                );
+                
+                if (result && result.path) {
+                    fullPath.push(...result.path);
+                    totalDistance += result.distance;
+                } else {
+                    // Fallback: ligne droite
+                    fullPath.push([points[i].lat, points[i].lng]);
+                    fullPath.push([points[i + 1].lat, points[i + 1].lng]);
+                    totalDistance += offlineRouter.haversine(
+                        points[i].lat, points[i].lng,
+                        points[i + 1].lat, points[i + 1].lng
+                    );
+                }
+            }
+            
+            return {
+                path: fullPath,
+                distance: totalDistance
+            };
+        }
+        
+        // Optimisation TSP offline
+        function optimizeTSPOffline(startPoint, placettes) {
+            if (!offlineRouter) {
+                // Fallback sur l'algorithme local simple
+                return optimizeRouteOrder(startPoint, placettes);
+            }
+            
+            // Construire les points pour le TSP
+            const points = [];
+            
+            if (startPoint.id === 'GPS') {
+                points.push({ lat: startPoint.lat, lng: startPoint.lng, id: 'GPS' });
+            }
+            
+            placettes.forEach(p => {
+                points.push({ lat: p.y, lng: p.x, id: p.id, placette: p });
+            });
+            
+            try {
+                const result = offlineRouter.routeMulti(points);
+                
+                // Extraire les placettes dans l'ordre optimisé (sans le point GPS)
+                const orderedPlacettes = result.orderedPoints
+                    .filter(p => p.id !== 'GPS')
+                    .map(p => p.placette || placettes.find(pl => pl.id === p.id));
+                
+                return orderedPlacettes;
+            } catch (error) {
+                console.error('Erreur TSP offline:', error);
+                return optimizeRouteOrder(startPoint, placettes);
+            }
+        }
+        
+        // Fonction pour optimiser l'ordre avec OpenRouteService (TSP réel)
+        async function optimizeRouteWithORS(startPoint, placettes, transportMode) {
+            const profile = transportMode === 'car' ? 'driving-car' : 
+                           transportMode === 'bike' ? 'cycling-regular' : 'foot-walking';
+            
+            // Construire les jobs (placettes à visiter)
+            const jobs = placettes.map((p, i) => ({
+                id: i + 1,
+                location: [p.x, p.y], // [lng, lat]
+                service: 60 // 1 minute de service par placette
+            }));
+            
+            // Construire le véhicule (point de départ)
+            const vehicles = [{
+                id: 1,
+                profile: profile,
+                start: [startPoint.lng, startPoint.lat],
+                end: [startPoint.lng, startPoint.lat] // Retour au départ (optionnel)
+            }];
+            
+            // Si on ne veut pas retourner au départ, on peut supprimer "end"
+            // Pour un parcours ouvert :
+            delete vehicles[0].end;
+            
+            const requestBody = {
+                jobs: jobs,
+                vehicles: vehicles
+            };
+            
+            try {
+                const response = await fetch('https://api.openrouteservice.org/optimization', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': ORS_API_KEY,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`ORS API error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.routes && data.routes.length > 0) {
+                    const route = data.routes[0];
+                    
+                    // Extraire l'ordre optimisé des placettes
+                    const optimizedOrder = [];
+                    route.steps.forEach(step => {
+                        if (step.type === 'job') {
+                            const placette = placettes[step.job - 1]; // job id commence à 1
+                            if (placette) {
+                                optimizedOrder.push(placette);
+                            }
+                        }
+                    });
+                    
+                    return {
+                        success: true,
+                        order: optimizedOrder,
+                        distance: route.distance, // Distance totale en mètres
+                        duration: route.duration  // Durée totale en secondes
+                    };
+                }
+                
+                throw new Error('No route found');
+                
+            } catch (error) {
+                console.error('ORS Optimization error:', error);
+                return {
+                    success: false,
+                    error: error.message
+                };
+            }
+        }
+        
+        // Fonction pour obtenir l'itinéraire détaillé avec ORS Directions
+        async function getORSDirections(waypoints, transportMode) {
+            const profile = transportMode === 'car' ? 'driving-car' : 
+                           transportMode === 'bike' ? 'cycling-regular' : 'foot-walking';
+            
+            const coordinates = waypoints.map(wp => [wp.lng, wp.lat]);
+            
+            try {
+                const response = await fetch(`https://api.openrouteservice.org/v2/directions/${profile}/geojson`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': ORS_API_KEY,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        coordinates: coordinates
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`ORS Directions error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.features && data.features.length > 0) {
+                    const feature = data.features[0];
+                    return {
+                        success: true,
+                        geometry: feature.geometry,
+                        distance: feature.properties.summary.distance,
+                        duration: feature.properties.summary.duration
+                    };
+                }
+                
+                throw new Error('No directions found');
+                
+            } catch (error) {
+                console.error('ORS Directions error:', error);
+                return {
+                    success: false,
+                    error: error.message
+                };
+            }
+        }
+        
+        function toggleMultiRouteSection() {
+            const content = document.getElementById('multiRouteContent');
+            const arrow = document.getElementById('multiRouteArrow');
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                arrow.classList.add('rotated');
+                
+                // Initialiser le routeur offline si pas encore fait
+                if (!offlineRouter) {
+                    initOfflineRouter();
+                }
+            } else {
+                content.style.display = 'none';
+                arrow.classList.remove('rotated');
+                // Désactiver le mode sélection carte quand on ferme
+                if (multiRouteState.selectionMode === 'carte') {
+                    disableMultiRouteMapSelection();
+                }
+            }
+        }
+        
+        // Variable pour stocker le mode de routage global
+        let globalRoutingMode = 'offline';
+        
+        function setRoutingMode(mode) {
+            globalRoutingMode = mode;
+            multiRouteState.routingMode = mode;
+            
+            // Mettre à jour les boutons globaux
+            document.getElementById('globalRoutingOffline').classList.toggle('active', mode === 'offline');
+            document.getElementById('globalRoutingOnline').classList.toggle('active', mode === 'online');
+            
+            // Mettre à jour le statut global
+            const status = document.getElementById('globalRoutingStatus');
+            if (mode === 'offline') {
+                status.innerHTML = '🗺️ Réseau local actif';
+                status.style.color = 'var(--accent)';
+            } else {
+                status.innerHTML = '🌐 OpenRouteService actif';
+                status.style.color = '#f59e0b';
+            }
+            
+            showNotification(mode === 'offline' ? '🗺️ Mode Offline activé' : '🌐 Mode Online activé');
+        }
+        
+        function toggleRoadsDisplay() {
+            // Synchroniser les deux toggles
+            const toggleGlobal = document.getElementById('toggleRoadsGlobal');
+            const toggleLocal = document.getElementById('toggleRoads');
+            
+            // Basculer l'état
+            const isActive = toggleGlobal.classList.toggle('active');
+            
+            // Synchroniser l'autre toggle
+            if (toggleLocal) {
+                toggleLocal.classList.toggle('active', isActive);
+            }
+            
+            toggleRoadsLayer(isActive);
+            
+            if (isActive) {
+                showNotification('🛣️ Réseau routier affiché');
+            } else {
+                showNotification('🗺️ Réseau routier masqué');
+            }
+        }
+        
+        function setMultiRouteSelectionMode(mode) {
+            multiRouteState.selectionMode = mode;
+            
+            // Mettre à jour les boutons
+            document.getElementById('selectionModeCode').classList.toggle('active', mode === 'code');
+            document.getElementById('selectionModeCarte').classList.toggle('active', mode === 'carte');
+            
+            // Afficher/masquer les sections
+            document.getElementById('multiRouteCodeSection').style.display = mode === 'code' ? 'block' : 'none';
+            document.getElementById('multiRouteCarteSection').style.display = mode === 'carte' ? 'block' : 'none';
+            
+            // Activer/désactiver le mode sélection sur la carte
+            if (mode === 'carte') {
+                enableMultiRouteMapSelection();
+            } else {
+                disableMultiRouteMapSelection();
+            }
+        }
+        
+        function enableMultiRouteMapSelection() {
+            // Ajouter une classe pour indiquer le mode sélection
+            document.getElementById('map').classList.add('multi-route-selection-mode');
+            showNotification('🗺️ Cliquez sur les placettes pour les ajouter');
+        }
+        
+        function disableMultiRouteMapSelection() {
+            document.getElementById('map').classList.remove('multi-route-selection-mode');
+        }
+        
+        // Fonction appelée quand on clique sur une placette (à intégrer dans createPlacettesLayers)
+        function handlePlacetteClickForMultiRoute(placetteId) {
+            if (multiRouteState.selectionMode === 'carte') {
+                addToMultiRoute(placetteId);
+            }
+        }
+        
+        function setupMultiTransportModes() {
+            document.querySelectorAll('.multi-transport-mode').forEach(mode => {
+                mode.addEventListener('click', function() {
+                    // Retirer la classe active de tous
+                    document.querySelectorAll('.multi-transport-mode').forEach(m => m.classList.remove('active'));
+                    // Ajouter la classe active au mode cliqué
+                    this.classList.add('active');
+                    // Sauvegarder le mode
+                    multiRouteState.transportMode = this.dataset.mode;
+                });
+            });
+        }
+        
+        function setupMultiRouteAutocomplete() {
+            const input = document.getElementById('multiRouteInput');
+            const list = document.getElementById('multiRouteAutocompleteList');
+            
+            input.addEventListener('input', () => {
+                const query = input.value.toLowerCase();
+                if (query.length < 1) {
+                    list.classList.remove('visible');
+                    return;
+                }
+                
+                // Filtrer les placettes non déjà sélectionnées
+                const selectedIds = multiRouteState.placettes.map(p => p.id);
+                const filtered = PLACETTES_DATA.filter(p => 
+                    p.id.toLowerCase().includes(query) && !selectedIds.includes(p.id)
+                ).slice(0, 10);
+                
+                if (filtered.length === 0) {
+                    list.innerHTML = '<div class="autocomplete-item" style="color: var(--text-muted);">Aucun résultat</div>';
+                } else {
+                    list.innerHTML = filtered.map(p => 
+                        `<div class="autocomplete-item" data-id="${p.id}">${p.id}</div>`
+                    ).join('');
+                    
+                    list.querySelectorAll('.autocomplete-item[data-id]').forEach(item => {
+                        item.addEventListener('click', () => {
+                            addToMultiRoute(item.dataset.id);
+                            input.value = '';
+                            list.classList.remove('visible');
+                        });
+                    });
+                }
+                
+                list.classList.add('visible');
+            });
+            
+            input.addEventListener('focus', () => {
+                if (input.value.length >= 1) {
+                    input.dispatchEvent(new Event('input'));
+                }
+            });
+            
+            input.addEventListener('blur', () => {
+                setTimeout(() => list.classList.remove('visible'), 200);
+            });
+            
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    const firstItem = list.querySelector('.autocomplete-item[data-id]');
+                    if (firstItem) {
+                        addToMultiRoute(firstItem.dataset.id);
+                        input.value = '';
+                        list.classList.remove('visible');
+                    }
+                }
+            });
+        }
+        
+        function addToMultiRoute(placetteId) {
+            const placette = PLACETTES_DATA.find(p => p.id === placetteId);
+            if (!placette) return;
+            
+            // Vérifier si déjà ajoutée
+            if (multiRouteState.placettes.find(p => p.id === placetteId)) {
+                showNotification(`⚠️ ${placetteId} déjà dans le parcours`);
+                return;
+            }
+            
+            multiRouteState.placettes.push(placette);
+            
+            // Ajouter un marqueur sur la carte
+            addMultiRouteMarkerOnMap(placette, multiRouteState.placettes.length);
+            
+            updateMultiRouteUI();
+            
+            // Notification
+            const count = multiRouteState.placettes.length;
+            showNotification(`✅ ${placetteId} ajoutée (${count} placette${count > 1 ? 's' : ''})`);
+            
+            // Ouvrir la section multi-route si elle est fermée
+            const content = document.getElementById('multiRouteContent');
+            if (content.style.display === 'none') {
+                toggleMultiRouteSection();
+            }
+        }
+        
+        // Ajouter un marqueur de sélection sur la carte
+        function addMultiRouteMarkerOnMap(placette, number) {
+            // Initialiser le tableau si nécessaire
+            if (!multiRouteState.selectionMarkers) {
+                multiRouteState.selectionMarkers = [];
+            }
+            
+            const icon = L.divIcon({
+                className: 'multi-route-selection-marker',
+                html: `
+                    <div style="position: relative;">
+                        <div style="
+                            width: 32px; height: 32px;
+                            background: linear-gradient(135deg, #f59e0b, #fbbf24);
+                            border: 3px solid white;
+                            border-radius: 50%;
+                            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.5);
+                            display: flex; align-items: center; justify-content: center;
+                            color: white; font-size: 14px; font-weight: bold;
+                            animation: pulseSelection 1.5s ease-in-out infinite;
+                        ">${number}</div>
+                    </div>
+                `,
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
+            
+            const marker = L.marker([placette.y, placette.x], { 
+                icon: icon, 
+                zIndexOffset: 1500 
+            }).addTo(state.map);
+            
+            marker.bindPopup(`
+                <div style="text-align:center; padding: 5px;">
+                    <strong style="color: #f59e0b;">📍 Étape ${number}</strong><br>
+                    <span style="font-family: monospace;">${placette.id}</span><br>
+                    <button onclick="removeFromMultiRouteById('${placette.id}')" style="
+                        margin-top: 8px;
+                        padding: 5px 10px;
+                        background: #ff6b6b;
+                        color: white;
+                        border: none;
+                        border-radius: 5px;
+                        cursor: pointer;
+                    ">Retirer du parcours</button>
+                </div>
+            `);
+            
+            // Stocker le marqueur avec l'id de la placette
+            multiRouteState.selectionMarkers.push({
+                id: placette.id,
+                marker: marker
+            });
+        }
+        
+        // Mettre à jour tous les marqueurs (numéros)
+        function updateMultiRouteMarkersOnMap() {
+            if (!multiRouteState.selectionMarkers) return;
+            
+            // Supprimer tous les marqueurs existants
+            multiRouteState.selectionMarkers.forEach(item => {
+                state.map.removeLayer(item.marker);
+            });
+            multiRouteState.selectionMarkers = [];
+            
+            // Recréer les marqueurs avec les nouveaux numéros
+            multiRouteState.placettes.forEach((placette, index) => {
+                addMultiRouteMarkerOnMap(placette, index + 1);
+            });
+        }
+        
+        // Supprimer une placette par son ID
+        function removeFromMultiRouteById(placetteId) {
+            const index = multiRouteState.placettes.findIndex(p => p.id === placetteId);
+            if (index !== -1) {
+                removeFromMultiRoute(index);
+            }
+        }
+        
+        function removeFromMultiRoute(index) {
+            multiRouteState.placettes.splice(index, 1);
+            updateMultiRouteUI();
+            
+            // Mettre à jour les marqueurs sur la carte
+            updateMultiRouteMarkersOnMap();
+        }
+        
+        function clearMultiRoute() {
+            multiRouteState.placettes = [];
+            
+            // Supprimer les marqueurs de sélection
+            if (multiRouteState.selectionMarkers) {
+                multiRouteState.selectionMarkers.forEach(item => {
+                    state.map.removeLayer(item.marker);
+                });
+                multiRouteState.selectionMarkers = [];
+            }
+            
+            updateMultiRouteUI();
+        }
+        
+        function clearMultiRouteItinerary() {
+            // Effacer l'itinéraire sur la carte
+            clearRoute();
+            
+            // Vider la liste des placettes sélectionnées
+            multiRouteState.placettes = [];
+            
+            // Supprimer les marqueurs de sélection
+            if (multiRouteState.selectionMarkers) {
+                multiRouteState.selectionMarkers.forEach(item => {
+                    state.map.removeLayer(item.marker);
+                });
+                multiRouteState.selectionMarkers = [];
+            }
+            
+            updateMultiRouteUI();
+            
+            // Masquer la zone de résultat
+            document.getElementById('multiRouteResult').style.display = 'none';
+            document.getElementById('multiRouteResult').innerHTML = '';
+            
+            // Masquer le bouton effacer itinéraire
+            document.getElementById('clearMultiRouteItineraryBtn').style.display = 'none';
+            
+            // Désactiver le mode sélection carte si actif
+            if (multiRouteState.selectionMode === 'carte') {
+                disableMultiRouteMapSelection();
+            }
+            
+            // Remettre en mode code par défaut
+            setMultiRouteSelectionMode('code');
+            
+            showNotification('🗺️ Carte réinitialisée');
+        }
+        
+        function updateMultiRouteUI() {
+            const list = document.getElementById('multiRouteList');
+            const count = multiRouteState.placettes.length;
+            
+            document.getElementById('multiRouteCount').textContent = count;
+            document.getElementById('clearMultiRouteBtn').disabled = count === 0;
+            document.getElementById('calculateMultiRouteBtn').disabled = count < 2;
+            
+            if (count === 0) {
+                list.innerHTML = '<p class="no-selection">Aucune placette sélectionnée</p>';
+            } else {
+                list.innerHTML = multiRouteState.placettes.map((p, i) => `
+                    <div class="multi-route-item">
+                        <div class="multi-route-item-info">
+                            <div class="multi-route-item-num">${i + 1}</div>
+                            <span class="multi-route-item-code">${p.id}</span>
+                        </div>
+                        <button class="multi-route-item-remove" onclick="removeFromMultiRoute(${i})" title="Retirer">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 6L6 18M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                `).join('');
+            }
+        }
+        
+        async function calculateMultiRoute() {
+            if (multiRouteState.placettes.length < 2) {
+                showNotification('Sélectionnez au moins 2 placettes');
+                return;
+            }
+            
+            // Supprimer les marqueurs de sélection (ils seront remplacés par les marqueurs de l'itinéraire)
+            if (multiRouteState.selectionMarkers) {
+                multiRouteState.selectionMarkers.forEach(item => {
+                    state.map.removeLayer(item.marker);
+                });
+                multiRouteState.selectionMarkers = [];
+            }
+            
+            // Déterminer le point de départ
+            const departType = document.querySelector('input[name="multiDepart"]:checked').value;
+            let startPoint;
+            
+            if (departType === 'gps') {
+                if (state.userPosition) {
+                    startPoint = { lat: state.userPosition.lat, lng: state.userPosition.lng, id: 'GPS' };
+                } else {
+                    showNotification('GPS non disponible - départ de la première placette');
+                    startPoint = { 
+                        lat: multiRouteState.placettes[0].y, 
+                        lng: multiRouteState.placettes[0].x, 
+                        id: multiRouteState.placettes[0].id 
+                    };
+                }
+            } else {
+                startPoint = { 
+                    lat: multiRouteState.placettes[0].y, 
+                    lng: multiRouteState.placettes[0].x, 
+                    id: multiRouteState.placettes[0].id 
+                };
+            }
+            
+            // Choisir le mode de routage
+            if (multiRouteState.routingMode === 'offline') {
+                // Mode OFFLINE - utiliser le réseau routier local
+                showNotification('🔄 Calcul offline en cours...');
+                
+                // Optimiser l'ordre avec TSP offline
+                const optimizedOrder = optimizeTSPOffline(startPoint, [...multiRouteState.placettes]);
+                
+                // Créer l'itinéraire offline
+                createOptimizedRouteOffline(startPoint, optimizedOrder, multiRouteState.transportMode);
+                
+            } else {
+                // Mode ONLINE - utiliser OpenRouteService
+                showNotification('🔄 Calcul online (ORS)...');
+                
+                // Utiliser OpenRouteService pour optimiser l'ordre (TSP avec réseau routier)
+                const orsResult = await optimizeRouteWithORS(startPoint, [...multiRouteState.placettes], multiRouteState.transportMode);
+                
+                let optimizedOrder;
+                
+                if (orsResult.success) {
+                    optimizedOrder = orsResult.order;
+                    showNotification('✅ Ordre optimal calculé (ORS)');
+                } else {
+                    // Fallback sur l'algorithme local
+                    console.warn('ORS failed, using local algorithm:', orsResult.error);
+                    showNotification('⚠️ ORS indisponible, calcul local...');
+                    optimizedOrder = optimizeRouteOrder(startPoint, [...multiRouteState.placettes]);
+                }
+                
+                // Obtenir l'itinéraire détaillé via ORS Directions
+                await createOptimizedRouteWithORS(startPoint, optimizedOrder, multiRouteState.transportMode);
+            }
+        }
+        
+        // Créer l'itinéraire en mode OFFLINE
+        function createOptimizedRouteOffline(startPoint, orderedPlacettes, transportMode) {
+            // Nettoyer les anciens itinéraires
+            clearRoute();
+            
+            // Masquer toutes les placettes
+            dimPlacettesForNavigation(true);
+            
+            // Sauvegarder dans le state
+            state.optimizedRoute = {
+                placettes: orderedPlacettes,
+                startFromGPS: startPoint.id === 'GPS',
+                polyline: null,
+                markers: [],
+                placetteMarkers: [],
+                transportMode: transportMode
+            };
+            
+            // Calculer l'itinéraire offline avec Dijkstra
+            const routeResult = routeOffline(startPoint, orderedPlacettes);
+            
+            if (routeResult && routeResult.path && routeResult.path.length > 0) {
+                // Tracer l'itinéraire
+                state.optimizedRoute.polyline = L.polyline(routeResult.path, {
+                    color: '#00d4aa',
+                    weight: 5,
+                    opacity: 0.9
+                }).addTo(state.map);
+                
+                // Créer les marqueurs
+                const waypoints = [];
+                const pointsInfo = [];
+                
+                if (startPoint.id === 'GPS') {
+                    waypoints.push({ lat: startPoint.lat, lng: startPoint.lng });
+                    pointsInfo.push({ isGPS: true, label: 'D', name: 'Votre position' });
+                }
+                
+                orderedPlacettes.forEach((p, i) => {
+                    waypoints.push({ lat: p.y, lng: p.x });
+                    pointsInfo.push({ 
+                        isGPS: false, 
+                        label: (i + 1).toString(), 
+                        name: p.id,
+                        placette: p
+                    });
+                });
+                
+                createRouteMarkersORS(waypoints, pointsInfo, orderedPlacettes);
+                
+                // Ajuster la vue
+                state.map.fitBounds(state.optimizedRoute.polyline.getBounds(), { padding: [50, 50] });
+                
+                // Calculer le temps selon le mode de transport
+                const speeds = { car: 40, foot: 4, bike: 12 };
+                const speedKmh = speeds[transportMode] || 4;
+                const duration = (routeResult.distance / 1000 / speedKmh) * 3600;
+                
+                // Afficher les résultats
+                showOptimizedRouteResultsWithMode(
+                    routeResult.distance, 
+                    duration, 
+                    orderedPlacettes, 
+                    transportMode, 
+                    false
+                );
+                
+                showNotification(`✅ Itinéraire offline : ${(routeResult.distance/1000).toFixed(1)} km`);
+                
+            } else {
+                // Fallback si pas de route trouvée
+                showNotification('⚠️ Route non trouvée, affichage à vol d\'oiseau');
+                createFallbackRoute(startPoint, orderedPlacettes, transportMode);
+            }
+            
+            document.getElementById('clearRoute').style.display = 'flex';
+        }
+        
+        // Créer l'itinéraire avec OpenRouteService Directions
+        async function createOptimizedRouteWithORS(startPoint, orderedPlacettes, transportMode) {
+            // Nettoyer les anciens itinéraires
+            clearRoute();
+            
+            // Masquer toutes les placettes
+            dimPlacettesForNavigation(true);
+            
+            // Sauvegarder dans le state
+            state.optimizedRoute = {
+                placettes: orderedPlacettes,
+                startFromGPS: startPoint.id === 'GPS',
+                polyline: null,
+                markers: [],
+                placetteMarkers: [],
+                transportMode: transportMode
+            };
+            
+            // Construire les waypoints
+            const waypoints = [];
+            const pointsInfo = [];
+            
+            if (startPoint.id === 'GPS') {
+                waypoints.push({ lat: startPoint.lat, lng: startPoint.lng });
+                pointsInfo.push({ isGPS: true, label: 'D', name: 'Votre position' });
+            }
+            
+            orderedPlacettes.forEach((p, i) => {
+                waypoints.push({ lat: p.y, lng: p.x });
+                pointsInfo.push({ 
+                    isGPS: false, 
+                    label: (i + 1).toString(), 
+                    name: p.id,
+                    placette: p
+                });
+            });
+            
+            state.optimizedRoute.pointsInfo = pointsInfo;
+            
+            // Obtenir les directions via ORS
+            const directionsResult = await getORSDirections(waypoints, transportMode);
+            
+            if (directionsResult.success) {
+                // Tracer l'itinéraire avec la géométrie ORS
+                const coordinates = directionsResult.geometry.coordinates.map(c => [c[1], c[0]]);
+                state.optimizedRoute.polyline = L.polyline(coordinates, {
+                    color: '#f59e0b',
+                    weight: 5,
+                    opacity: 0.9
+                }).addTo(state.map);
+                
+                // Créer les marqueurs
+                createRouteMarkersORS(waypoints, pointsInfo, orderedPlacettes);
+                
+                // Ajuster la vue
+                state.map.fitBounds(state.optimizedRoute.polyline.getBounds(), { padding: [50, 50] });
+                
+                // Afficher les résultats
+                showOptimizedRouteResultsWithMode(
+                    directionsResult.distance, 
+                    directionsResult.duration, 
+                    orderedPlacettes, 
+                    transportMode, 
+                    false
+                );
+                
+                const modeNames = { foot: 'à pied', car: 'en voiture', bike: 'à vélo' };
+                showNotification(`✅ Trajet ${modeNames[transportMode]} : ${(directionsResult.distance/1000).toFixed(1)} km`);
+                
+            } else {
+                // Fallback : utiliser l'ancien système OSRM
+                console.warn('ORS Directions failed, using OSRM fallback');
+                showNotification('⚠️ Fallback sur OSRM...');
+                createOptimizedRouteWithMode(startPoint, orderedPlacettes, transportMode);
+                return;
+            }
+            
+            document.getElementById('clearRoute').style.display = 'flex';
+        }
+        
+        // Créer les marqueurs pour ORS
+        function createRouteMarkersORS(waypoints, pointsInfo, orderedPlacettes) {
+            waypoints.forEach((wp, i) => {
+                const info = pointsInfo[i];
+                
+                if (info.isGPS) {
+                    // Marqueur GPS de départ
+                    const icon = L.divIcon({
+                        className: 'optimized-marker',
+                        html: `<div style="
+                            width: 36px; height: 36px;
+                            background: #4285f4;
+                            border: 3px solid white;
+                            border-radius: 50%;
+                            box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+                            display: flex; align-items: center; justify-content: center;
+                            color: white; font-size: 14px; font-weight: bold;
+                        ">D</div>`,
+                        iconSize: [36, 36],
+                        iconAnchor: [18, 18]
+                    });
+                    
+                    const marker = L.marker([wp.lat, wp.lng], { icon: icon, zIndexOffset: 2000 }).addTo(state.map);
+                    marker.bindPopup(`
+                        <div style="text-align:center; min-width: 100px;">
+                            <strong style="color:#4285f4; font-size: 14px;">🚀 Départ</strong><br>
+                            <span>Votre position GPS</span>
+                        </div>
+                    `);
+                    state.optimizedRoute.markers.push(marker);
+                } else {
+                    // Marqueur placette avec badge numéro
+                    const isLast = i === waypoints.length - 1;
+                    const badgeColor = isLast ? '#ff6b6b' : '#f59e0b';
+                    
+                    const icon = L.divIcon({
+                        className: 'placette-with-badge',
+                        html: `
+                            <div style="position: relative;">
+                                <div style="
+                                    width: 28px; height: 28px;
+                                    background: linear-gradient(135deg, #00d4aa, #00ffcc);
+                                    border: 3px solid white;
+                                    border-radius: 50%;
+                                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                                    display: flex; align-items: center; justify-content: center;
+                                ">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+                                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                                    </svg>
+                                </div>
+                                <div style="
+                                    position: absolute;
+                                    top: -8px;
+                                    right: -8px;
+                                    width: 22px; height: 22px;
+                                    background: ${badgeColor};
+                                    border: 2px solid white;
+                                    border-radius: 50%;
+                                    display: flex; align-items: center; justify-content: center;
+                                    color: white; font-size: 11px; font-weight: bold;
+                                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                                ">${info.label}</div>
+                            </div>
+                        `,
+                        iconSize: [36, 36],
+                        iconAnchor: [14, 28]
+                    });
+                    
+                    const marker = L.marker([wp.lat, wp.lng], { icon: icon, zIndexOffset: 2000 }).addTo(state.map);
+                    marker.bindPopup(createPlacettePopup(info.placette));
+                    state.optimizedRoute.placetteMarkers.push(marker);
+                }
+            });
+        }
+        
+        // Event listener pour les radio buttons du départ
+        function setupMultiRouteRadios() {
+            document.querySelectorAll('input[name="multiDepart"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    document.querySelectorAll('.radio-small').forEach(label => {
+                        label.classList.remove('selected');
+                    });
+                    this.parentElement.classList.add('selected');
+                });
+            });
         }
         
         function setupSelectionAutocomplete() {
@@ -2826,8 +5140,18 @@
                 state.map.removeLayer(state.birdMarkerEnd);
             }
             
-            // Réduire l'opacité des placettes pendant la navigation
+            // Supprimer les anciens marqueurs de placettes itinéraire
+            if (state.routePlacetteMarkers) {
+                state.routePlacetteMarkers.forEach(m => state.map.removeLayer(m));
+            }
+            state.routePlacetteMarkers = [];
+            
+            // Masquer toutes les placettes
             dimPlacettesForNavigation(true);
+            
+            // Récupérer les infos des placettes de départ et arrivée si applicable
+            const startPlacette = getPlacetteAtLocation(start);
+            const endPlacette = getPlacetteAtLocation(end);
             
             // Calculer la distance à vol d'oiseau (formule Haversine)
             const R = 6371e3; // Rayon de la Terre en mètres
@@ -2857,37 +5181,58 @@
                 dashArray: '10, 10'
             }).addTo(state.map);
             
-            // Marqueur départ
-            state.birdMarkerStart = L.marker([start.lat, start.lng], {
-                icon: L.divIcon({
-                    className: 'bird-marker',
-                    html: `<div style="
-                        width: 24px; height: 24px;
-                        background: #4285f4;
-                        border: 3px solid white;
-                        border-radius: 50%;
-                        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                    "></div>`,
-                    iconSize: [24, 24],
-                    iconAnchor: [12, 12]
-                })
-            }).addTo(state.map);
+            // Créer les marqueurs
+            if (startPlacette) {
+                // Placette de départ avec badge
+                const marker = createPlacetteMarkerWithBadge(startPlacette, 'D', '#4285f4');
+                state.routePlacetteMarkers.push(marker);
+                state.birdMarkerStart = null;
+            } else {
+                // Marqueur GPS ou point carte
+                state.birdMarkerStart = L.marker([start.lat, start.lng], {
+                    icon: L.divIcon({
+                        className: 'bird-marker',
+                        html: `<div style="
+                            width: 32px; height: 32px;
+                            background: #4285f4;
+                            border: 3px solid white;
+                            border-radius: 50%;
+                            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                            display: flex; align-items: center; justify-content: center;
+                            color: white; font-size: 14px; font-weight: bold;
+                        ">D</div>`,
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
+                    }),
+                    zIndexOffset: 2000
+                }).addTo(state.map);
+            }
             
-            // Marqueur arrivée
-            state.birdMarkerEnd = L.marker([end.lat, end.lng], {
-                icon: L.divIcon({
-                    className: 'bird-marker',
-                    html: `<div style="
-                        width: 24px; height: 24px;
-                        background: #ff6b6b;
-                        border: 3px solid white;
-                        border-radius: 50%;
-                        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                    "></div>`,
-                    iconSize: [24, 24],
-                    iconAnchor: [12, 12]
-                })
-            }).addTo(state.map);
+            if (endPlacette) {
+                // Placette d'arrivée avec badge
+                const marker = createPlacetteMarkerWithBadge(endPlacette, 'A', '#ff6b6b');
+                state.routePlacetteMarkers.push(marker);
+                state.birdMarkerEnd = null;
+            } else {
+                // Marqueur GPS ou point carte
+                state.birdMarkerEnd = L.marker([end.lat, end.lng], {
+                    icon: L.divIcon({
+                        className: 'bird-marker',
+                        html: `<div style="
+                            width: 32px; height: 32px;
+                            background: #ff6b6b;
+                            border: 3px solid white;
+                            border-radius: 50%;
+                            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                            display: flex; align-items: center; justify-content: center;
+                            color: white; font-size: 14px; font-weight: bold;
+                        ">A</div>`,
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
+                    }),
+                    zIndexOffset: 2000
+                }).addTo(state.map);
+            };
             
             // Afficher les résultats
             let distanceText;
@@ -2936,6 +5281,13 @@
             // Supprimer l'ancien itinéraire
             if (state.routingControl) {
                 state.map.removeControl(state.routingControl);
+                state.routingControl = null;
+            }
+            
+            // Supprimer l'ancienne ligne offline si présente
+            if (state.offlineRouteLine) {
+                state.map.removeLayer(state.offlineRouteLine);
+                state.offlineRouteLine = null;
             }
             
             // Supprimer la ligne vol d'oiseau si présente
@@ -2952,9 +5304,147 @@
                 state.birdMarkerEnd = null;
             }
             
-            // Réduire l'opacité des placettes pendant la navigation
+            // Supprimer les anciens marqueurs de placettes itinéraire
+            if (state.routePlacetteMarkers) {
+                state.routePlacetteMarkers.forEach(m => state.map.removeLayer(m));
+            }
+            state.routePlacetteMarkers = [];
+            
+            // Masquer toutes les placettes
             dimPlacettesForNavigation(true);
             
+            // Récupérer les infos des placettes de départ et arrivée si applicable
+            const startPlacette = getPlacetteAtLocation(start);
+            const endPlacette = getPlacetteAtLocation(end);
+            
+            // Créer les marqueurs des placettes concernées
+            if (startPlacette) {
+                const marker = createPlacetteMarkerWithBadge(startPlacette, 'D', '#4285f4');
+                state.routePlacetteMarkers.push(marker);
+            }
+            if (endPlacette && (!startPlacette || endPlacette.id !== startPlacette.id)) {
+                const marker = createPlacetteMarkerWithBadge(endPlacette, 'A', '#ff6b6b');
+                state.routePlacetteMarkers.push(marker);
+            }
+            
+            // Utiliser le mode de routage global
+            if (globalRoutingMode === 'offline') {
+                createOfflineRoute(start, end, startPlacette, endPlacette);
+            } else {
+                createOnlineRoute(start, end, startPlacette, endPlacette);
+            }
+        }
+        
+        // Routage offline avec le réseau local
+        function createOfflineRoute(start, end, startPlacette, endPlacette) {
+            if (!offlineRouter) {
+                initOfflineRouter();
+            }
+            
+            if (!offlineRouter) {
+                showNotification('⚠️ Routeur offline non disponible, basculement vers online');
+                createOnlineRoute(start, end, startPlacette, endPlacette);
+                return;
+            }
+            
+            const result = offlineRouter.route(start.lat, start.lng, end.lat, end.lng);
+            
+            if (!result || !result.path || result.path.length < 2) {
+                showNotification('⚠️ Aucun itinéraire trouvé, essai en ligne droite');
+                // Fallback: ligne droite
+                result = {
+                    path: [[start.lat, start.lng], [end.lat, end.lng]],
+                    distance: offlineRouter.haversine(start.lat, start.lng, end.lat, end.lng)
+                };
+            }
+            
+            // Créer la ligne de l'itinéraire
+            state.offlineRouteLine = L.polyline(result.path, {
+                color: '#00d4aa',
+                weight: 6,
+                opacity: 0.8,
+                lineCap: 'round',
+                lineJoin: 'round'
+            }).addTo(state.map);
+            
+            // Ajouter une ligne de contour
+            const outlineLine = L.polyline(result.path, {
+                color: '#006b55',
+                weight: 8,
+                opacity: 0.5,
+                lineCap: 'round',
+                lineJoin: 'round'
+            }).addTo(state.map);
+            state.offlineRouteLine.bringToFront();
+            
+            // Stocker la ligne de contour pour la supprimer plus tard
+            if (!state.offlineRouteOutline) state.offlineRouteOutline = [];
+            state.offlineRouteOutline.push(outlineLine);
+            
+            // Créer les marqueurs si pas de placettes
+            if (!startPlacette) {
+                state.birdMarkerStart = L.marker([start.lat, start.lng], {
+                    icon: L.divIcon({
+                        className: 'route-marker',
+                        html: `<div style="
+                            width: 32px; height: 32px;
+                            background: #4285f4;
+                            border: 3px solid white;
+                            border-radius: 50%;
+                            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                            display: flex; align-items: center; justify-content: center;
+                            color: white; font-size: 14px; font-weight: bold;
+                        ">D</div>`,
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
+                    }),
+                    zIndexOffset: 2000
+                }).addTo(state.map);
+            }
+            
+            if (!endPlacette) {
+                state.birdMarkerEnd = L.marker([end.lat, end.lng], {
+                    icon: L.divIcon({
+                        className: 'route-marker',
+                        html: `<div style="
+                            width: 32px; height: 32px;
+                            background: #ff6b6b;
+                            border: 3px solid white;
+                            border-radius: 50%;
+                            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                            display: flex; align-items: center; justify-content: center;
+                            color: white; font-size: 14px; font-weight: bold;
+                        ">A</div>`,
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
+                    }),
+                    zIndexOffset: 2000
+                }).addTo(state.map);
+            }
+            
+            // Calculer le temps estimé (40 km/h pour voiture, 4 km/h à pied)
+            const speeds = { car: 40000, foot: 4000, bike: 15000 }; // m/h
+            const speed = speeds[state.transportMode] || 40000;
+            const timeSeconds = (result.distance / speed) * 3600;
+            
+            // Afficher les résultats
+            document.getElementById('routeStatsNormal').style.display = 'grid';
+            document.getElementById('routeStatsBird').style.display = 'none';
+            
+            document.getElementById('routeDistance').textContent = 
+                result.distance >= 1000 ? (result.distance / 1000).toFixed(1) + ' km' : Math.round(result.distance) + ' m';
+            document.getElementById('routeTime').textContent = formatTime(timeSeconds);
+            document.getElementById('routeResult').classList.add('visible');
+            document.getElementById('clearRoute').style.display = 'flex';
+            
+            // Ajuster la vue
+            state.map.fitBounds(state.offlineRouteLine.getBounds(), { padding: [50, 50] });
+            
+            showNotification('🗺️ Itinéraire calculé (offline)');
+        }
+        
+        // Routage online avec OSRM
+        function createOnlineRoute(start, end, startPlacette, endPlacette) {
             const profiles = {
                 car: 'car',
                 foot: 'foot',
@@ -2975,36 +5465,52 @@
                     addWaypoints: false
                 },
                 createMarker: function(i, wp) {
+                    // Si c'est une placette, ne pas créer de marqueur (on l'a déjà créé)
+                    const isStartPlacette = i === 0 && startPlacette;
+                    const isEndPlacette = i === 1 && endPlacette;
+                    
+                    if (isStartPlacette || isEndPlacette) {
+                        // Retourner un marqueur invisible
+                        return L.marker(wp.latLng, {
+                            icon: L.divIcon({
+                                className: 'hidden-marker',
+                                html: '',
+                                iconSize: [0, 0]
+                            })
+                        });
+                    }
+                    
+                    // Sinon créer le marqueur standard (pour GPS ou point carte)
                     const markerIcon = i === 0 ? L.divIcon({
                         className: 'route-marker route-marker-start',
                         html: `<div style="
-                            width: 28px; height: 28px;
+                            width: 32px; height: 32px;
                             background: #4285f4;
                             border: 3px solid white;
                             border-radius: 50%;
                             box-shadow: 0 2px 10px rgba(66, 133, 244, 0.5);
                             display: flex; align-items: center; justify-content: center;
                         ">
-                            <span style="color: white; font-size: 12px; font-weight: bold;">D</span>
+                            <span style="color: white; font-size: 14px; font-weight: bold;">D</span>
                         </div>`,
-                        iconSize: [28, 28],
-                        iconAnchor: [14, 14]
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
                     }) : L.divIcon({
                         className: 'route-marker route-marker-end',
                         html: `<div style="
-                            width: 28px; height: 28px;
+                            width: 32px; height: 32px;
                             background: #ff6b6b;
                             border: 3px solid white;
                             border-radius: 50%;
                             box-shadow: 0 2px 10px rgba(255, 107, 107, 0.5);
                             display: flex; align-items: center; justify-content: center;
                         ">
-                            <span style="color: white; font-size: 12px; font-weight: bold;">A</span>
+                            <span style="color: white; font-size: 14px; font-weight: bold;">A</span>
                         </div>`,
-                        iconSize: [28, 28],
-                        iconAnchor: [14, 14]
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
                     });
-                    return L.marker(wp.latLng, { icon: markerIcon, draggable: true, zIndexOffset: 2000 });
+                    return L.marker(wp.latLng, { icon: markerIcon, zIndexOffset: 2000 });
                 },
                 show: false,
                 addWaypoints: false,
@@ -3025,13 +5531,106 @@
                 document.getElementById('routeTime').textContent = formatTime(time);
                 document.getElementById('routeResult').classList.add('visible');
                 document.getElementById('clearRoute').style.display = 'flex';
+                
+                showNotification('🌐 Itinéraire calculé (online)');
             });
+            
+            state.routingControl.on('routingerror', function(e) {
+                showNotification('⚠️ Erreur de routage online');
+                console.error('Routing error:', e);
+            });
+        }
+        
+        // Fonction pour trouver une placette à une position donnée
+        function getPlacetteAtLocation(latlng) {
+            const tolerance = 0.0001; // Tolérance de position
+            return PLACETTES_DATA.find(p => 
+                Math.abs(p.y - latlng.lat) < tolerance && 
+                Math.abs(p.x - latlng.lng) < tolerance
+            );
+        }
+        
+        // Fonction pour créer un marqueur de placette avec badge
+        function createPlacetteMarkerWithBadge(placette, label, badgeColor) {
+            const icon = L.divIcon({
+                className: 'placette-with-badge',
+                html: `
+                    <div style="position: relative;">
+                        <div style="
+                            width: 28px; height: 28px;
+                            background: linear-gradient(135deg, #00d4aa, #00ffcc);
+                            border: 3px solid white;
+                            border-radius: 50%;
+                            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                            display: flex; align-items: center; justify-content: center;
+                        ">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                            </svg>
+                        </div>
+                        <div style="
+                            position: absolute;
+                            top: -8px;
+                            right: -8px;
+                            width: 22px; height: 22px;
+                            background: ${badgeColor};
+                            border: 2px solid white;
+                            border-radius: 50%;
+                            display: flex; align-items: center; justify-content: center;
+                            color: white; font-size: 11px; font-weight: bold;
+                            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                        ">${label}</div>
+                    </div>
+                `,
+                iconSize: [36, 36],
+                iconAnchor: [14, 28]
+            });
+            
+            const marker = L.marker([placette.y, placette.x], { 
+                icon: icon, 
+                zIndexOffset: 2000 
+            }).addTo(state.map);
+            
+            // Utiliser le popup original de la placette
+            marker.bindPopup(createPlacettePopup(placette));
+            
+            return marker;
         }
         
         function clearRoute() {
             if (state.routingControl) {
                 state.map.removeControl(state.routingControl);
                 state.routingControl = null;
+            }
+            
+            // Nettoyer l'itinéraire offline
+            if (state.offlineRouteLine) {
+                state.map.removeLayer(state.offlineRouteLine);
+                state.offlineRouteLine = null;
+            }
+            if (state.offlineRouteOutline) {
+                state.offlineRouteOutline.forEach(line => state.map.removeLayer(line));
+                state.offlineRouteOutline = [];
+            }
+            
+            // Nettoyer l'itinéraire optimisé
+            if (state.optimizedRoute) {
+                if (state.optimizedRoute.polyline) {
+                    state.map.removeLayer(state.optimizedRoute.polyline);
+                }
+                if (state.optimizedRoute.markers) {
+                    state.optimizedRoute.markers.forEach(m => state.map.removeLayer(m));
+                }
+                if (state.optimizedRoute.placetteMarkers) {
+                    state.optimizedRoute.placetteMarkers.forEach(m => state.map.removeLayer(m));
+                }
+                state.optimizedRoute = null;
+            }
+            
+            // Nettoyer les marqueurs de placettes itinéraire simple
+            if (state.routePlacetteMarkers) {
+                state.routePlacetteMarkers.forEach(m => state.map.removeLayer(m));
+                state.routePlacetteMarkers = [];
             }
             
             // Nettoyer la ligne vol d'oiseau
@@ -3065,25 +5664,69 @@
             // Restaurer l'opacité des placettes
             dimPlacettesForNavigation(false);
             
-            document.getElementById('routeResult').classList.remove('visible');
+            // Restaurer l'affichage normal du résultat
+            const routeResult = document.getElementById('routeResult');
+            routeResult.innerHTML = `
+                <!-- Affichage standard (voiture, pied, vélo) -->
+                <div class="route-stats" id="routeStatsNormal">
+                    <div class="stat-item">
+                        <div class="stat-value" id="routeDistance">--</div>
+                        <div class="stat-label">Distance</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="routeTime">--</div>
+                        <div class="stat-label">Durée</div>
+                    </div>
+                </div>
+                
+                <!-- Affichage vol d'oiseau -->
+                <div class="route-stats-bird" id="routeStatsBird" style="display: none;">
+                    <div class="bird-compass">
+                        <div class="compass-circle">
+                            <div class="compass-arrow" id="compassArrow"></div>
+                            <div class="compass-n">N</div>
+                        </div>
+                        <div class="compass-bearing" id="compassBearing">--°</div>
+                    </div>
+                    <div class="bird-info">
+                        <div class="bird-stat">
+                            <div class="bird-value" id="birdDistance">--</div>
+                            <div class="bird-label">Distance</div>
+                        </div>
+                        <div class="bird-stat">
+                            <div class="bird-value" id="birdTime">--</div>
+                            <div class="bird-label">Durée estimée</div>
+                        </div>
+                        <div class="bird-stat">
+                            <div class="bird-value" id="birdDirection">--</div>
+                            <div class="bird-label">Direction</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            routeResult.classList.remove('visible');
             document.getElementById('clearRoute').style.display = 'none';
         }
         
         // Fonction pour atténuer/restaurer les placettes pendant la navigation
         function dimPlacettesForNavigation(dim) {
-            const placettesContainer = document.querySelector('.leaflet-marker-pane');
-            if (placettesContainer) {
-                if (dim) {
-                    placettesContainer.classList.add('navigation-mode');
-                } else {
-                    placettesContainer.classList.remove('navigation-mode');
+            // Masquer complètement les couches placettes et repères
+            if (dim) {
+                if (state.placettesLayer && state.map.hasLayer(state.placettesLayer)) {
+                    state.map.removeLayer(state.placettesLayer);
                 }
-            }
-            
-            // Aussi atténuer les clusters
-            const shadowPane = document.querySelector('.leaflet-shadow-pane');
-            if (shadowPane) {
-                shadowPane.style.opacity = dim ? '0.3' : '1';
+                if (state.reperesLayer && state.map.hasLayer(state.reperesLayer)) {
+                    state.map.removeLayer(state.reperesLayer);
+                }
+            } else {
+                // Restaurer les couches si elles étaient visibles
+                if (state.placettesLayer && state.showPlacettes) {
+                    state.placettesLayer.addTo(state.map);
+                }
+                if (state.reperesLayer && state.showReperes) {
+                    state.reperesLayer.addTo(state.map);
+                }
             }
         }
         
@@ -3778,6 +6421,22 @@
             document.getElementById('clearSelectionBtn').addEventListener('click', clearSelection);
             document.getElementById('keepSelectedBtn').addEventListener('click', keepOnlySelected);
             document.getElementById('restoreAllBtn').addEventListener('click', restoreAllPlacettes);
+            
+            // Multi-Route (onglet Navigation)
+            setupMultiRouteAutocomplete();
+            setupMultiRouteRadios();
+            setupMultiTransportModes();
+            document.getElementById('addMultiRouteBtn').addEventListener('click', () => {
+                const input = document.getElementById('multiRouteInput');
+                const id = input.value.trim();
+                if (id && PLACETTES_DATA.find(p => p.id === id)) {
+                    addToMultiRoute(id);
+                    input.value = '';
+                }
+            });
+            document.getElementById('clearMultiRouteBtn').addEventListener('click', clearMultiRoute);
+            document.getElementById('calculateMultiRouteBtn').addEventListener('click', calculateMultiRoute);
+            document.getElementById('clearMultiRouteItineraryBtn').addEventListener('click', clearMultiRouteItinerary);
             
             // Recherche placette - synchroniser avec le champ zoom
             document.getElementById('searchPlacette').addEventListener('input', (e) => {
